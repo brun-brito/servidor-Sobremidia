@@ -15,8 +15,8 @@ async function generateReport(req, res) {
             endTime,
             mediaId,
             playerId,
-            sort: -1
-        }
+            sort: -1,
+        },
     };
 
     try {
@@ -24,14 +24,14 @@ async function generateReport(req, res) {
         const postResponse = await axios.post(BASE_URL, requestBody, {
             headers: {
                 "Content-Type": "application/json",
-                "Secret-Token": SECRET_TOKEN
-            }
+                "Secret-Token": SECRET_TOKEN,
+            },
         });
 
         if (!postResponse.data || !postResponse.data.id) {
             return res.status(502).json({
                 success: false,
-                error: "Falha ao obter ID do relatório. Resposta inválida da API externa."
+                error: "Falha ao obter ID do relatório. Resposta inválida da API externa.",
             });
         }
 
@@ -42,7 +42,7 @@ async function generateReport(req, res) {
         if (!reportData.url) {
             return res.status(502).json({
                 success: false,
-                error: "A URL do relatório não está disponível. Resposta inválida da API externa."
+                error: "A URL do relatório não está disponível. Resposta inválida da API externa.",
             });
         }
 
@@ -53,17 +53,19 @@ async function generateReport(req, res) {
             const processedData = await downloadAndProcessReport(reportData.url);
 
             console.log("[INFO] Relatório processado com sucesso!");
-            return res.status(200).json({ success: true, data: processedData });
+            return res.status(200).json({
+                success: true,
+                data: processedData,
+            });
         } catch (error) {
-            // Tratar relatório vazio ou outros erros específicos
             if (error.statusCode === 404) {
                 console.warn("[WARN] O relatório foi gerado, mas está vazio.");
                 return res.status(404).json({
                     success: false,
-                    message: error.message
+                    message: error.message,
                 });
             }
-            throw error; // Repassar erro se não for tratado aqui
+            throw error;
         }
     } catch (error) {
         handleRequestError(res, error);
@@ -88,10 +90,12 @@ async function checkReportStatus(reportId) {
 
             console.log("[INFO] Relatório ainda em processamento. Aguardando...");
             await new Promise(resolve => setTimeout(resolve, delay));
+
         } catch (error) {
             if (error.response?.status === 429) {
                 console.warn("[WARN] Limite de requisições atingido. Aguardando...");
                 await new Promise(resolve => setTimeout(resolve, delay));
+
             } else {
                 console.error("[ERROR] Erro ao verificar status:", error.message);
                 throw new Error("Erro ao verificar status do relatório.");
@@ -137,7 +141,7 @@ async function downloadAndProcessReport(reportUrl) {
 function handleRequestError(res, error) {
     if (error.response) {
         const statusCode = error.response.status || 500;
-        const apiError = error.response.data?.error;
+        const apiError = error.response.data?.details.report[0];
 
         console.error(`[ERROR] Erro da API externa. Status: ${statusCode}, Erro: ${apiError}`);
 
@@ -145,12 +149,12 @@ function handleRequestError(res, error) {
             case 400:
                 return res.status(400).json({
                     success: false,
-                    error: "Requisição inválida. Verifique os filtros aplicados."
+                    error: `Requisição inválida. Verifique os filtros aplicados: ${apiError}`
                 });
             case 429:
                 return res.status(429).json({
                     success: false,
-                    error: "Limite de requisições atingido. Aguarde antes de tentar novamente."
+                    error: `Limite de requisições atingido. Aguarde antes de tentar novamente: ${apiError}`
                 });
             default:
                 return res.status(statusCode).json({
