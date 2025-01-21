@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const reportsRouter = require("./routes/reports");
+const proxyRouter = require("./routes/proxy");
 const PORT = process.env.PORT || 3000;
 const app = express();
 
@@ -10,6 +11,7 @@ app.use(express.json());
 
 // Rotas
 app.use("/reports", reportsRouter);
+app.use("/proxy", proxyRouter);
 
 app.listen(PORT, () => {
     console.log(`[INFO] Servidor rodando na porta ${PORT}`);
