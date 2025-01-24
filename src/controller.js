@@ -2,14 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const pako = require('pako');
+const { SECRET_TOKEN, BASE_URL } = require("./config");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-
-const SECRET_TOKEN = 'a59202bc005fa4305916bca8aa7e31d0';
-const BASE_URL = 'https://api.4yousee.com.br/v1/reports';
 
 app.post('/generate-report', async (req, res) => {
     const { startDate, startTime, endDate, endTime, mediaId, playerId } = req.body;
@@ -31,7 +29,7 @@ app.post('/generate-report', async (req, res) => {
     try {
         // Enviar requisição para gerar o relatório
         console.log("[INFO] Enviando requisição para gerar o relatório...");
-        const postResponse = await axios.post(BASE_URL, requestBody, {
+        const postResponse = await axios.post(`${BASE_URL}/v1/reports`, requestBody, {
             headers: {
                 'Content-Type': 'application/json',
                 'Secret-Token': SECRET_TOKEN
@@ -66,7 +64,7 @@ async function checkReportStatus(reportId) {
         console.log(`[INFO] Tentativa ${attempts} de verificar o status do relatório...`);
 
         try {
-            const response = await axios.get(`${BASE_URL}/${reportId}`, {
+            const response = await axios.get(`${BASE_URL}/v1/reports/${reportId}`, {
                 headers: { 'Secret-Token': SECRET_TOKEN }
             });
         

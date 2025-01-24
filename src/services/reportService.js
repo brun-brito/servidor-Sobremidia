@@ -21,7 +21,7 @@ async function generateReport(req, res) {
 
     try {
         console.log("[INFO] Enviando requisição para gerar o relatório...");
-        const postResponse = await axios.post(BASE_URL, requestBody, {
+        const postResponse = await axios.post(`${BASE_URL}/v1/reports`, requestBody, {
             headers: {
                 "Content-Type": "application/json",
                 "Secret-Token": SECRET_TOKEN,
@@ -80,7 +80,7 @@ async function checkReportStatus(reportId) {
         console.log(`[INFO] Tentativa ${attempts} de verificar o status do relatório...`);
 
         try {
-            const response = await axios.get(`${BASE_URL}/${reportId}`, {
+            const response = await axios.get(`${BASE_URL}/v1/reports/${reportId}`, {
                 headers: { "Secret-Token": SECRET_TOKEN }
             });
 
