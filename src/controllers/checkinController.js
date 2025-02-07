@@ -1,54 +1,38 @@
 const checkinService = require("../services/checkinService");
 
-exports.createCheckIn = async (req, res) => {
+exports.uploadPhotos = async (req, res) => {
     try {
-        // Função auxiliar para truncar strings grandes
-        const truncateString = (str, maxLength = 50) => {
-            if (!str) return null;
-            return str.length > maxLength
-                ? `${str.substring(0, maxLength / 2)}...${str.substring(str.length - maxLength / 2)}`
-                : str;
-        };
-
-        // Log detalhado da requisição recebida (com truncamento)
-        console.log("[INFO] Requisição recebida no endpoint /checkin:", {
-            panelId: req.body.panelId,
-            panelName: req.body.panelName,
-            mediaPhotos: req.body.mediaPhotos.map((photo) => ({
-                mediaId: photo.mediaId,
-                mediaName: photo.mediaName,
-                mediaPhoto: truncateString(photo.mediaPhoto),
-                environmentPhoto: truncateString(photo.environmentPhoto),
-                timestampMedia: photo.timestampMedia,
-                timestampEnvironment: photo.timestampEnvironment,
-            })),
-        });
-
-        const { panelId, panelName, mediaPhotos } = req.body;
-
-        // Validar se os campos obrigatórios estão presentes
-        if (!panelId || !panelName || !mediaPhotos || mediaPhotos.length === 0) {
-            console.error("[ERROR] Dados inválidos:", {
-                panelId,
-                panelName,
-                mediaPhotos: mediaPhotos.map((photo) => ({
-                    mediaId: photo.mediaId,
-                    mediaName: photo.mediaName,
-                    mediaPhoto: photo.mediaPhoto ? "Presente" : "Ausente",
-                    environmentPhoto: photo.environmentPhoto ? "Presente" : "Ausente",
-                })),
-            });
-            return res.status(400).json({ error: "Dados inválidos. 'panelId', 'panelName' e 'mediaPhotos' são obrigatórios." });
-        }
-
-        // Chamar o serviço para salvar o Check-In
-        const checkInData = await checkinService.saveCheckIn(panelId, panelName, mediaPhotos);
-        res.status(201).json({ message: "Check-in criado com sucesso!", checkInData });
+      // Verifica se os arquivos foram enviados
+      if (!req.files || !req.files.fotosMidia || !req.files.fotosEntorno) {
+        return res.status(400).json({ error: 'É obrigatório anexar pelo menos uma foto da mídia e uma do entorno.' });
+      }
+      const result = await checkinService.uploadPhotosService(req.files, req.body);
+      res.status(200).json({ message: 'Fotos carregadas com sucesso!', ...result });
     } catch (error) {
-        console.error("[ERROR] Erro ao criar check-in:", error);
-        res.status(500).json({ error: "Erro interno ao criar o check-in." });
+      console.error("Erro no upload de fotos do check-in:", error);
+      res.status(500).json({ error: 'Erro ao fazer upload das fotos do check-in.' });
     }
-};
+  }
+  
+exports.uploadVideoChunk = async (req, res) => {
+    try {
+        const result = await checkinService.uploadVideoChunkService(req);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error("Erro no upload em chunks de vídeo:", error);
+        res.status(500).json({ error: error.message || 'Erro ao processar o upload em chunks de vídeo.' });
+    }
+}
+  
+exports.createCheckin = async (req, res) => {
+    try {
+      const result = await checkinService.createCheckinService(req.body);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Erro ao criar check-in:", error);
+      res.status(500).json({ error: error.message || 'Erro ao criar check-in.' });
+    }
+}
 
 // Recuperar Check-Ins
 exports.getCheckIns = async (req, res) => {

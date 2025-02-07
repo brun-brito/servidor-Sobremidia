@@ -1,88 +1,126 @@
 const { db, admin, bucket } = require("../config/firebase");
-const { v4: uuidv4 } = require("uuid");
+const fs = require('fs');
+const path = require('path');
 
-// Salvar Check-In
-exports.saveCheckIn = async (panelId, panelName, mediaPhotos) => {
-    const checkInRef = db.collection("check-in").doc();
-    const checkInId = checkInRef.id;
-
-    const photoUrls = []; // Lista de URLs para salvar no Firestore
-
-    for (const media of mediaPhotos) {
-        const {
-            mediaId,
-            mediaName,
-            mediaPhoto,
-            environmentPhoto,
-            timestampMedia,
-            timestampEnvironment,
-        } = media;
-
-        // Validar se ambas as fotos estão presentes
-        if (!mediaPhoto || !environmentPhoto) {
-            console.error(`[ERROR] Fotos ausentes para mídia ${mediaId}:`, {
-                mediaPhoto,
-                environmentPhoto,
-            });
-            throw new Error(`Fotos obrigatórias ausentes para mídia ${mediaId}.`);
-        }
-
-        let mediaUrl, environmentUrl;
-
-        try {
-            // Salvar a foto da mídia
-            const mediaFileName = `check-in/${checkInId}/${mediaId}_media_${uuidv4()}.jpg`;
-            const mediaFile = bucket.file(mediaFileName);
-
-            await mediaFile.save(Buffer.from(mediaPhoto, "base64"), {
-                metadata: { contentType: "image/jpeg" },
-            });
-
-            [mediaUrl] = await mediaFile.getSignedUrl({
-                action: "read",
-                expires: "03-01-2030",
-            });
-
-            // Salvar a foto do entorno
-            const environmentFileName = `check-in/${checkInId}/${mediaId}_environment_${uuidv4()}.jpg`;
-            const environmentFile = bucket.file(environmentFileName);
-
-            await environmentFile.save(Buffer.from(environmentPhoto, "base64"), {
-                metadata: { contentType: "image/jpeg" },
-            });
-
-            [environmentUrl] = await environmentFile.getSignedUrl({
-                action: "read",
-                expires: "03-01-2030",
-            });
-
-            // Adicionar as URLs e timestamps ao array
-            photoUrls.push({
-                mediaId,
-                mediaName,
-                mediaUrl,
-                environmentUrl,
-                timestampMedia: timestampMedia || "Sem data", // Valor padrão caso esteja ausente
-                timestampEnvironment: timestampEnvironment || "Sem data", // Valor padrão caso esteja ausente
-            });
-
-        } catch (error) {
-            console.error(`[ERROR] Falha ao salvar fotos para mídia ${mediaId}:`, error);
-            throw new Error(`Erro ao salvar as fotos para mídia ${mediaId}.`);
-        }
+exports.uploadPhotosService = async (files, body) => {
+    // Recebe os timestamps enviados; se não forem arrays, converte para array
+    let fotosMidiaTimestamps = body.fotosMidiaTimestamps;
+    let fotosEntornoTimestamps = body.fotosEntornoTimestamps;
+    if (!Array.isArray(fotosMidiaTimestamps)) {
+      fotosMidiaTimestamps = [fotosMidiaTimestamps];
     }
-
-    // Salvar dados no Firestore
-    const checkInData = {
-        panelId,
-        panelName,
-        photos: photoUrls,
-        createdAt: admin.firestore.Timestamp.now(),
+    if (!Array.isArray(fotosEntornoTimestamps)) {
+      fotosEntornoTimestamps = [fotosEntornoTimestamps];
+    }
+    
+    // Função auxiliar para upload de um arquivo para o Firebase Storage
+    const uploadFile = async (file, timestamp) => {
+      const ts = Date.now();
+      const fileName = `checkin/${ts}_${file.originalname}`;
+      const fileRef = bucket.file(fileName);
+      await fileRef.save(file.buffer, {
+        metadata: { contentType: file.mimetype },
+        resumable: true
+      });
+      await fileRef.makePublic();
+      return { timestamp: timestamp || new Date().toISOString(), url: `https://storage.googleapis.com/${bucket.name}/${fileName}` };
     };
-
-    await checkInRef.set(checkInData);
-    return checkInData;
+  
+    // Upload de fotos da mídia
+    const fotosMidiaUploads = await Promise.all(
+      files.fotosMidia.map((file, idx) => uploadFile(file, fotosMidiaTimestamps[idx]))
+    );
+    
+    // Upload de fotos do entorno
+    const fotosEntornoUploads = await Promise.all(
+      files.fotosEntorno.map((file, idx) => uploadFile(file, fotosEntornoTimestamps[idx]))
+    );
+    
+    return { fotosMidia: fotosMidiaUploads, fotosEntorno: fotosEntornoUploads };
+}
+  
+exports.uploadVideoChunkService = async (req) => {
+    const { fileId, chunkIndex, totalChunks, originalName, videoTimestamp } = req.body;
+    const chunkIndexNum = parseInt(chunkIndex, 10);
+    const totalChunksNum = parseInt(totalChunks, 10);
+  
+    const chunksDir = path.join("tmp/uploads", fileId);
+    const chunkFilePath = path.join(chunksDir, `${chunkIndexNum}`);
+  
+    // Garante que o diretório de chunks exista
+    fs.mkdirSync(chunksDir, { recursive: true });
+  
+    // Salva o chunk atual no diretório temporário
+    await new Promise((resolve, reject) => {
+      const writeStream = fs.createWriteStream(chunkFilePath);
+      req.file.stream.pipe(writeStream);
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
+  
+    // Se for o último chunk, junta todos os pedaços
+    if (chunkIndexNum === totalChunksNum - 1) {
+      const finalFilePath = path.join(chunksDir, `final_${originalName}`);
+      const writeStream = fs.createWriteStream(finalFilePath);
+  
+      // Concatena os chunks na ordem correta
+      for (let i = 0; i < totalChunksNum; i++) {
+        const chunkPath = path.join(chunksDir, `${i}`);
+        if (!fs.existsSync(chunkPath)) {
+          throw new Error(`Chunk ${i} não encontrado.`);
+        }
+        const data = fs.readFileSync(chunkPath);
+        writeStream.write(data);
+      }
+      writeStream.end();
+  
+      await new Promise((resolve, reject) => {
+        writeStream.on("finish", resolve);
+        writeStream.on("error", reject);
+      });
+  
+      // Upload do arquivo final para o Firebase Storage
+      const fileName = `checkin/${Date.now()}_${originalName}`;
+      const fileRef = bucket.file(fileName);
+      const finalFileBuffer = fs.readFileSync(finalFilePath);
+      await fileRef.save(finalFileBuffer, {
+        metadata: { contentType: req.file.mimetype },
+        resumable: false,
+      });
+      await fileRef.makePublic();
+  
+      // Limpa os arquivos temporários
+      fs.rmSync(chunksDir, { recursive: true, force: true });
+  
+      return { timestamp: videoTimestamp || new Date().toISOString(), url: `https://storage.googleapis.com/${bucket.name}/${fileName}` };
+    } else {
+      return { message: `Chunk ${chunkIndex} recebido.` };
+    }
 };
+  
+exports.createCheckinService = async (data) => {
+    // Valida se o array de midias foi enviado e se cada mídia contém pelo menos um arquivo em cada categoria
+    if (!data.midias || !Array.isArray(data.midias) || data.midias.length === 0) {
+      throw new Error('Midias inválidas.');
+    }
+    for (let media of data.midias) {
+      if (!media.fotosMidia || media.fotosMidia.length === 0 ||
+          !media.fotosEntorno || media.fotosEntorno.length === 0 ||
+          !media.videosMidia || media.videosMidia.length === 0) {
+        throw new Error('Cada mídia deve ter pelo menos um arquivo em cada categoria.');
+      }
+    }
+    
+    const checkinData = {
+      createdAt: admin.firestore.Timestamp.now(),
+      panelId: data.panelId,
+      panelName: data.panelName,
+      midias: data.midias
+    };
+    
+    const docRef = await db.collection('checkin').add(checkinData);
+    return { message: 'Check-in criado com sucesso!', id: docRef.id };
+}
 
 exports.getCheckIns = async () => {
     try {
