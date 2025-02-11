@@ -17,7 +17,7 @@ async function corsAnywhere(req, res) {
         res.set("Content-Type", contentType);
         res.send(response.data);
     } catch (error) {
-        console.error("Erro no proxy:", error);
+        console.error("Erro no proxy:", error.code);
         res.status(500).json({ error: "Falha ao carregar a URL" });
     }
 };

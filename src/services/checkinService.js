@@ -124,7 +124,7 @@ exports.createCheckinService = async (data) => {
 
 exports.getCheckIns = async () => {
     try {
-        const snapshot = await db.collection("check-in").get();
+        const snapshot = await db.collection("checkin").get();
 
         if (snapshot.empty) {
             return [];
