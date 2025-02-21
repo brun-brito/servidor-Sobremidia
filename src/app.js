@@ -24,8 +24,8 @@ app.use("/proxy", proxyRouter);
 app.use("/checkin", checkinRoute);
 app.use("/email", emailRoute);
 
-app.listen(PORT, () => {
-    console.log(`[INFO] Servidor rodando na porta ${PORT}`);
-});
+// app.listen(PORT, () => {
+//     console.log(`[INFO] Servidor rodando na porta ${PORT}`);
+// });
 
 module.exports = app;

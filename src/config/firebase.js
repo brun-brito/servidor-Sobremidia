@@ -4,19 +4,17 @@ const admin = require('firebase-admin');
 // Inicializar o Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    projectId: process.env.PROJECT_ID,
+    clientEmail: process.env.CLIENT_EMAIL,
+    privateKey: process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
   }),
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET, // Define o bucket padrão  
+  storageBucket: process.env.STORAGE_BUCKET, 
 });
 
-// Inicializar Firestore e Storage
 const db = admin.firestore();
-const bucket = admin.storage().bucket(); // Obtém o bucket configurado no projeto
+const bucket = admin.storage().bucket();
 
 module.exports = {
-  admin,
   db,
-  bucket, // Exporta o bucket para uso nos serviços
+  bucket,
 };

@@ -3,3 +3,14 @@ node_modules/
 .env
 tmp/*
 tmp/uploads
+firebase-debug.log
+firebase-debug.*.log
+*.log
+*.log.*
+*.log.*.*
+*.log.*.*.*
+*.log.*.*.*.*
+*.log.*.*.*.*.*
+*.log.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*
+*.
