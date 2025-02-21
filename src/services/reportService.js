@@ -3,6 +3,8 @@ const pako = require("pako");
 const { SECRET_TOKEN, BASE_URL } = require("../config");
 const analyzeLogs = require("../utils/analyzeLogs");
 
+const reportsQueue = new Map(); // Armazena o status dos relatórios
+
 async function generateReport(req, res) {
     const { startDate, startTime, endDate, endTime, mediaId, playerId } = req.body;
 
@@ -13,9 +15,9 @@ async function generateReport(req, res) {
             startTime,
             endDate,
             endTime,
-            mediaId,
-            playerId,
-            sort: -1,
+            mediaId: Array.isArray(mediaId) ? mediaId : [],
+            playerId: Array.isArray(playerId) ? playerId : [],
+            sort: -1
         },
     };
 
@@ -29,62 +31,73 @@ async function generateReport(req, res) {
         });
 
         if (!postResponse.data || !postResponse.data.id) {
-            return res.status(502).json({
-                success: false,
-                error: "Falha ao obter ID do relatório. Resposta inválida da API externa.",
-            });
+            return res.status(502).json({ success: false, error: "Falha ao obter ID do relatório." });
         }
 
-        const reportId = postResponse.data.id;
+        const reportId = postResponse.data.id.toString();
+        reportsQueue.set(reportId, { status: "PENDENTE", url: null });
+
         console.log(`[INFO] Relatório criado com sucesso. ID: ${reportId}`);
-
-        const reportData = await checkReportStatus(reportId);
-        if (!reportData.url) {
-            return res.status(502).json({
-                success: false,
-                error: "A URL do relatório não está disponível. Resposta inválida da API externa.",
-            });
+        
+        if (reportsQueue.size > 3) {
+            const keys = Array.from(reportsQueue.keys());
+            const penultimateKey = keys[keys.length - 3];
+            reportsQueue.delete(penultimateKey);
+            console.log(`[INFO] Removendo relatório antigo. ID: ${penultimateKey}`);
         }
 
-        console.log("[INFO] URL do relatório:", reportData.url);
-        console.log("[INFO] Relatório pronto. Baixando...");
+        console.log("[DEBUG] reportsQueue após criação:", Array.from(reportsQueue.keys()));
 
-        try {
-            const processedData = await downloadAndProcessReport(reportData.url);
+        // Iniciar processamento em background
+        processReport(reportId);
 
-            console.log("[INFO] Relatório processado com sucesso!");
-            return res.status(200).json({
-                success: true,
-                data: processedData,
-            });
-        } catch (error) {
-            if (error.statusCode === 404) {
-                console.warn("[WARN] O relatório foi gerado, mas está vazio.");
-                return res.status(404).json({
-                    success: false,
-                    message: error.message,
-                });
-            }
-            throw error;
-        }
+        return res.status(202).json({ success: true, reportId, status: "PENDENTE" });
+
     } catch (error) {
-        handleRequestError(res, error);
+        console.error("[ERROR] Erro inesperado:", error.message);
+        return res.status(500).json({ success: false, error: "Erro interno no servidor." });
+    }    
+}
+
+async function processReport(reportId) {
+    console.log(`[INFO] Iniciando monitoramento do relatório: ${reportId}`);
+
+    try {
+        const reportData = await checkReportStatus(reportId);
+
+        if (!reportData.url) {
+            console.error(`[ERROR] O relatório ${reportId} falhou ou ainda não está pronto.`);
+            reportsQueue.set(reportId, { status: "FALHA", url: null });
+            return;
+        }
+
+        console.log(`[INFO] Relatório ${reportId} está pronto. URL: ${reportData.url}`);
+        reportsQueue.set(reportId, { status: "PRONTO", url: reportData.url });
+
+        const processedData = await downloadAndProcessReport(reportData.url);
+
+        reportsQueue.set(reportId, { status: "FINALIZADO", data: processedData });
+
+        console.log(`[INFO] Relatório ${reportId} processado com sucesso!`);
+    } catch (error) {
+        console.error(`[ERROR] Erro ao processar o relatório ${reportId}:`, error.message);
+        reportsQueue.set(reportId, { status: "FALHA", url: null });
     }
 }
 
 async function checkReportStatus(reportId) {
-    const maxAttempts = 30;
+    const maxAttempts = 60;
     const delay = 5000;
 
     for (let attempts = 1; attempts <= maxAttempts; attempts++) {
-        console.log(`[INFO] Tentativa ${attempts} de verificar o status do relatório...`);
+        console.log(`[INFO] Tentativa ${attempts} de verificar o status do relatório: ${reportId}`);
 
         try {
             const response = await axios.get(`${BASE_URL}/v1/reports/${reportId}`, {
                 headers: { "Secret-Token": SECRET_TOKEN }
             });
 
-            if (response.data.status === "success") {
+            if (response.data.status === "success" && response.data.url) {
                 return response.data;
             }
 
@@ -103,7 +116,36 @@ async function checkReportStatus(reportId) {
         }
     }
 
+    console.error(`[ERROR] Tempo limite excedido para geração do relatório ${reportId}.`);
     throw new Error("Tempo limite excedido para geração do relatório.");
+}
+
+// Endpoint para verificar o status do relatório
+async function getReportStatus(req, res) {
+    const { reportId } = req.params;
+    const report = reportsQueue.get(reportId.toString()); // Certifique-se de que está acessando como string
+
+    if (!report) {
+        console.error(`[ERROR] Relatório ${reportId} não encontrado.`);
+        return res.status(404).json({ success: false, error: "Relatório não encontrado." });
+    }
+
+    console.log(`[INFO] Status atual do relatório ${reportId}: ${report.status}`);
+    return res.status(200).json({ success: true, status: report.status });
+}
+
+// Endpoint para obter os resultados
+async function getReportResult(req, res) {
+    const { reportId } = req.params;
+    const report = reportsQueue.get(reportId.toString()); // Certifique-se de que está acessando como string
+
+    if (!report || report.status !== "FINALIZADO") {
+        console.error(`[ERROR] Tentativa de acessar relatório ${reportId} antes da conclusão.`);
+        return res.status(404).json({ success: false, error: "Relatório ainda não está pronto." });
+    }
+
+    console.log(`[INFO] Enviando dados do relatório ${reportId}`);
+    return res.status(200).json({ success: true, data: report.data });
 }
 
 async function downloadAndProcessReport(reportUrl) {
@@ -138,37 +180,4 @@ async function downloadAndProcessReport(reportUrl) {
     return analyzeLogs(logs);
 }
 
-function handleRequestError(res, error) {
-    if (error.response) {
-        const statusCode = error.response.status || 500;
-        const apiError = error.response.data?.details.report[0];
-
-        console.error(`[ERROR] Erro da API externa. Status: ${statusCode}, Erro: ${apiError}`);
-
-        switch (statusCode) {
-            case 400:
-                return res.status(400).json({
-                    success: false,
-                    error: `Requisição inválida. Verifique os filtros aplicados: ${apiError}`
-                });
-            case 429:
-                return res.status(429).json({
-                    success: false,
-                    error: `Limite de requisições atingido. Aguarde antes de tentar novamente: ${apiError}`
-                });
-            default:
-                return res.status(statusCode).json({
-                    success: false,
-                    error: apiError || "Erro desconhecido na API externa."
-                });
-        }
-    }
-
-    console.error("[ERROR] Erro inesperado:", error.message || error);
-    res.status(500).json({
-        success: false,
-        error: "Erro interno no servidor. Tente novamente mais tarde."
-    });
-}
-
-module.exports = { generateReport };
+module.exports = { generateReport, getReportStatus, getReportResult };
