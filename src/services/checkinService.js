@@ -1,4 +1,5 @@
-const { db, admin, bucket } = require("../config/firebase");
+const { db, bucket } = require("../config/firebase");
+const { FieldValue } = require("firebase-admin/firestore");
 const fs = require('fs');
 const path = require('path');
 
@@ -112,7 +113,7 @@ exports.createCheckinService = async (data) => {
     }
     
     const checkinData = {
-      createdAt: admin.firestore.Timestamp.now(),
+      createdAt: FieldValue.serverTimestamp(),
       panelId: data.panelId,
       panelName: data.panelName,
       midias: data.midias
