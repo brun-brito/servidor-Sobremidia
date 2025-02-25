@@ -81,7 +81,7 @@ async function processReport(reportId) {
         console.log(`[INFO] Relatório ${reportId} processado com sucesso!`);
     } catch (error) {
         console.error(`[ERROR] Erro ao processar o relatório ${reportId}:`, error.message);
-        reportsQueue.set(reportId, { status: "FALHA", url: null });
+        reportsQueue.set(reportId, { status: "FALHA", url: null, message: error.message });
     }
 }
 
@@ -131,7 +131,7 @@ async function getReportStatus(req, res) {
     }
 
     console.log(`[INFO] Status atual do relatório ${reportId}: ${report.status}`);
-    return res.status(200).json({ success: true, status: report.status });
+    return res.status(200).json({ success: true, status: report.status, message: report.message });
 }
 
 // Endpoint para obter os resultados
