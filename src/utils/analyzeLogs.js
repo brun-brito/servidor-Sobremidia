@@ -1,15 +1,20 @@
 function analyzeLogs(logs) {
+    const filteredLogs = logs.filter(log => {
+        if (!log.time) return true;
+        return !(log.time >= "01:00:00" && log.time <= "04:59:59");
+    });
+
     const detailedReport = {
         mediaDetails: {},
         playerDetails: {},
         summary: {
-            totalExhibitions: logs.length,
-            totalMedia: new Set(logs.map(log => log.mediaId)).size,
-            totalPlayers: new Set(logs.map(log => log.playerId)).size,
+            totalExhibitions: filteredLogs.length,
+            totalMedia: new Set(filteredLogs.map(log => log.mediaId)).size,
+            totalPlayers: new Set(filteredLogs.map(log => log.playerId)).size,
         }
     };
 
-    logs.forEach(log => {
+    filteredLogs.forEach(log => {
         // Agrupar por mediaId
         if (!detailedReport.mediaDetails[log.mediaId]) {
             detailedReport.mediaDetails[log.mediaId] = {
