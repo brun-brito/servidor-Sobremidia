@@ -1,6 +1,6 @@
 const axios = require("axios");
 const pako = require("pako");
-const { SECRET_TOKEN, BASE_URL } = require("../config");
+const { SECRET_TOKEN1, SECRET_TOKEN2, BASE_URL } = require("../config");
 const analyzeLogs = require("../utils/analyzeLogs");
 
 const reportsQueue = new Map(); // Armazena o status dos relatórios
@@ -26,7 +26,7 @@ async function generateReport(req, res) {
         const postResponse = await axios.post(`${BASE_URL}/v1/reports`, requestBody, {
             headers: {
                 "Content-Type": "application/json",
-                "Secret-Token": SECRET_TOKEN,
+                "Secret-Token": SECRET_TOKEN1,
             },
         });
 
@@ -94,7 +94,7 @@ async function checkReportStatus(reportId) {
 
         try {
             const response = await axios.get(`${BASE_URL}/v1/reports/${reportId}`, {
-                headers: { "Secret-Token": SECRET_TOKEN }
+                headers: { "Secret-Token": SECRET_TOKEN2 }
             });
 
             if (response.data.status === "success" && response.data.url) {
