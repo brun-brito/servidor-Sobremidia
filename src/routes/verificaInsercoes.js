@@ -1,5 +1,5 @@
 const express = require("express");
-const { generateDailyReport, waitForReport, processReportResult } = require("../services/verificaInsercoes");
+const { generateDailyReport, waitForReport, processReportResult } = require("../services/verificaInsercoesService");
 
 const router = express.Router();
 
