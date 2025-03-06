@@ -3,6 +3,7 @@ const router = express.Router();
 const emailController = require('../controllers/emailController');
 
 // Define o endpoint para envio de email
-router.post('/', emailController.sendEmail);
+router.post('/checkin', emailController.sendEmail);
+router.post("/report", emailController.handleSendMailReport);
 
 module.exports = router;
