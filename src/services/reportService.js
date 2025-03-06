@@ -2,11 +2,10 @@ const axios = require("axios");
 const pako = require("pako");
 const { SECRET_TOKEN1, SECRET_TOKEN2, BASE_URL } = require("../config");
 const analyzeLogs = require("../utils/analyzeLogs");
-
-const reportsQueue = new Map(); // Armazena o status dos relatórios
+const { db }= require("../config/firebase");
 
 async function generateReport(req, res) {
-    const { startDate, startTime, endDate, endTime, mediaId, playerId } = req.body;
+    const { startDate, startTime, endDate, endTime, mediaId, playerId, clientes } = req.body;
 
     const requestBody = {
         type: "detailed",
@@ -35,20 +34,23 @@ async function generateReport(req, res) {
         }
 
         const reportId = postResponse.data.id.toString();
-        reportsQueue.set(reportId, { status: "PENDENTE", url: null });
+        await db.collection("relatorios").doc(reportId).set({
+            reportId: reportId,
+            startDate: startDate || null,
+            startTime: startTime || null,
+            endDate: endDate || null,
+            endTime: endTime || null,
+            mediaId: Array.isArray(mediaId) ? mediaId : [],
+            playerId: Array.isArray(playerId) ? playerId : [],
+            status: "PENDENTE",
+            url: null,
+            createdAt: new Date(),
+            clientes: clientes || null,
+            senha: Math.random().toString(36).slice(-5),
+        });
 
         console.log(`[INFO] Relatório criado com sucesso. ID: ${reportId}`);
         
-        if (reportsQueue.size > 3) {
-            const keys = Array.from(reportsQueue.keys());
-            const penultimateKey = keys[keys.length - 3];
-            reportsQueue.delete(penultimateKey);
-            console.log(`[INFO] Removendo relatório antigo. ID: ${penultimateKey}`);
-        }
-
-        console.log("[DEBUG] reportsQueue após criação:", Array.from(reportsQueue.keys()));
-
-        // Iniciar processamento em background
         processReport(reportId);
 
         return res.status(202).json({ success: true, reportId, status: "PENDENTE" });
@@ -67,21 +69,24 @@ async function processReport(reportId) {
 
         if (!reportData.url) {
             console.error(`[ERROR] O relatório ${reportId} falhou ou ainda não está pronto.`);
-            reportsQueue.set(reportId, { status: "FALHA", url: null });
+            await db.collection("relatorios").doc(reportId).update({
+                status: "FALHA"            
+            });
             return;
         }
 
         console.log(`[INFO] Relatório ${reportId} está pronto. URL: ${reportData.url}`);
-        reportsQueue.set(reportId, { status: "PRONTO", url: reportData.url });
+        await db.collection("relatorios").doc(reportId).update({
+            status: "FINALIZADO",
+            url: reportData.url
+        });
 
-        const processedData = await downloadAndProcessReport(reportData.url);
-
-        reportsQueue.set(reportId, { status: "FINALIZADO", data: processedData });
-
-        console.log(`[INFO] Relatório ${reportId} processado com sucesso!`);
     } catch (error) {
         console.error(`[ERROR] Erro ao processar o relatório ${reportId}:`, error.message);
-        reportsQueue.set(reportId, { status: "FALHA", url: null, message: error.message });
+        await db.collection("relatorios").doc(reportId).update({
+            status: "FALHA",
+            message: error.message
+        });
     }
 }
 
@@ -94,7 +99,7 @@ async function checkReportStatus(reportId) {
 
         try {
             const response = await axios.get(`${BASE_URL}/v1/reports/${reportId}`, {
-                headers: { "Secret-Token": SECRET_TOKEN2 }
+                headers: { "Secret-Token": SECRET_TOKEN1 }
             });
 
             if (response.data.status === "success" && response.data.url) {
@@ -120,52 +125,89 @@ async function checkReportStatus(reportId) {
     throw new Error("Tempo limite excedido para geração do relatório.");
 }
 
-// Endpoint para verificar o status do relatório
 async function getReportStatus(req, res) {
     const { reportId } = req.params;
-    const report = reportsQueue.get(reportId.toString()); // Certifique-se de que está acessando como string
 
-    if (!report) {
-        console.error(`[ERROR] Relatório ${reportId} não encontrado.`);
-        return res.status(404).json({ success: false, error: "Relatório não encontrado." });
+    try {
+        const reportRef = db.collection("relatorios").doc(reportId);
+        const reportSnap = await reportRef.get();
+
+        if (!reportSnap.exists) {
+            console.error(`[ERROR] Relatório ${reportId} não encontrado.`);
+            return res.status(404).json({ success: false, error: "Relatório não encontrado." });
+        }
+
+        const reportData = reportSnap.data();
+        console.log(`[INFO] Status atual do relatório ${reportId}: ${reportData.status}`);
+
+        return res.status(200).json({
+            success: true,
+            status: reportData.status,
+            message: reportData.message || "-"
+        });
+
+    } catch (error) {
+        console.error(`[ERROR] Erro ao obter status do relatório ${reportId}:`, error.message);
+        return res.status(500).json({ success: false, error: "Erro interno ao obter status do relatório." });
     }
-
-    console.log(`[INFO] Status atual do relatório ${reportId}: ${report.status}`);
-    return res.status(200).json({ success: true, status: report.status, message: report.message });
 }
 
-// Endpoint para obter os resultados
 async function getReportResult(req, res) {
     const { reportId } = req.params;
-    const report = reportsQueue.get(reportId.toString()); // Certifique-se de que está acessando como string
 
-    if (!report || report.status !== "FINALIZADO") {
-        console.error(`[ERROR] Tentativa de acessar relatório ${reportId} antes da conclusão.`);
-        return res.status(404).json({ success: false, error: "Relatório ainda não está pronto." });
+    try {
+        const reportRef = db.collection("relatorios").doc(reportId);
+        const reportSnap = await reportRef.get();
+
+        if (!reportSnap.exists) {
+            console.error(`[ERROR] Relatório ${reportId} não encontrado.`);
+            return res.status(404).json({ success: false, error: "Relatório não encontrado." });
+        }
+
+        const reportData = reportSnap.data();
+
+        if (reportData.status !== "FINALIZADO" || !reportData.url) {
+            console.error(`[ERROR] Relatório ${reportId} ainda não está pronto.`);
+            return res.status(400).json({ success: false, error: "Relatório ainda não está pronto." });
+        }
+
+        console.log(`[INFO] Processando relatório ${reportId} a partir da URL ${reportData.url}`);
+        
+        try {
+            const processedData = await downloadAndProcessReport(reportData.url);
+            return res.status(200).json({ success: true, data: processedData });
+        } catch (error) {
+            console.error(`[ERROR] Erro ao processar relatório ${reportId}:`, error.message);
+
+            return res.status(error.statusCode || 500).json({
+                success: false,
+                error: error.message || "Erro interno ao processar o relatório."
+            });
+        }
+
+    } catch (error) {
+        console.error(`[ERROR] Erro inesperado ao obter resultado do relatório ${reportId}:`, error.message);
+        return res.status(500).json({
+            success: false,
+            error: "Erro interno ao obter o relatório."
+        });
     }
-
-    console.log(`[INFO] Enviando dados do relatório ${reportId}`);
-    return res.status(200).json({ success: true, data: report.data });
 }
 
 async function downloadAndProcessReport(reportUrl) {
+    console.log(`[INFO] Baixando e processando relatório de: ${reportUrl}`);
+
     const response = await axios.get(reportUrl, { responseType: "arraybuffer" });
 
     if (response.data.byteLength === 0) {
-        throw {
-            statusCode: 404,
-            message: "O relatório foi gerado, mas está vazio. Verifique os filtros aplicados ou tente novamente."
-        };
+        throw new Error("O relatório foi gerado, mas está vazio. Verifique os filtros aplicados ou tente novamente.");
     }
 
     const compressedData = new Uint8Array(response.data);
     const decompressedData = pako.ungzip(compressedData, { to: "string" });
 
-    if (decompressedData.length === 0) {
-        throw {
-            statusCode: 404,
-            message: "O relatório foi gerado, mas está vazio. Verifique os filtros aplicados ou tente novamente."
-        };
+    if (!decompressedData || decompressedData.length === 0) {
+        throw new Error("O relatório foi gerado, mas está vazio. Verifique os filtros aplicados ou tente novamente.");
     }
 
     const logs = decompressedData.trim().split("\n").map((line, index) => {
@@ -173,11 +215,15 @@ async function downloadAndProcessReport(reportUrl) {
             return JSON.parse(line);
         } catch (error) {
             console.error(`[ERROR] Linha inválida no arquivo descompactado (linha ${index + 1}):`, line);
-            throw error;
+            return null;
         }
-    });
+    }).filter(Boolean);
+
+    if (logs.length === 0) {
+        throw new Error("O relatório foi gerado, mas não contém dados. Tente usar outro filtro.");
+    }
 
     return analyzeLogs(logs);
 }
 
-module.exports = { generateReport, getReportStatus, getReportResult };
+module.exports = { generateReport, getReportStatus, getReportResult, downloadAndProcessReport };
