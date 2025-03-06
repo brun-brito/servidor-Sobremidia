@@ -184,6 +184,7 @@ router.get("/html/:id", async (req, res) => {
       <!DOCTYPE html>
       <html lang="pt">
         <head>
+          <link rel="icon" href="../../assets/fotos/color.png" type="image/x-icon">
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Relatório de Check-In</title>
@@ -200,26 +201,29 @@ router.get("/html/:id", async (req, res) => {
 
             h1 {
                 text-align: center;
-                color: #0056b3;
+                color: #24d464;
             }
 
             h2 {
-                border-bottom: 2px solid #0056b3;
+                border-bottom: 2px solid #24d464;
                 padding-bottom: 5px;
-                color: #0056b3;
+                color: #24d464;
             }
 
             h3 {
                 color: #333;
                 margin-top: 15px;
             }
-
-            .details-container {
-                background: white;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-            }
+                
+.details-container {
+    width: 90%;
+    max-width: 900px;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 40px; /* Adiciona espaço suficiente para o footer */
+}
 
             p {
                 font-size: 16px;
@@ -236,7 +240,7 @@ router.get("/html/:id", async (req, res) => {
                 margin: 10px 0;
                 padding: 15px;
                 border-radius: 8px;
-                box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+                //box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
             }
 
             .checkin-image {
@@ -324,6 +328,28 @@ router.get("/html/:id", async (req, res) => {
                 cursor: pointer;
             }
 
+            .header-image{
+              width: 100%;
+              display: block;
+              margin-bottom: -252px;
+              margin-top: -246px;
+              margin-left: -74px;
+            }
+            
+            .footer-image {
+              width: 100%;
+              max-width: 900px;
+              display: block;
+              margin-top: 20px;
+            }
+
+            .footer-container {
+                width: 100%;
+                text-align: center;
+                position: relative;
+                bottom: 0;
+            }
+
             @media (max-width: 600px) {
               .media-gallery {
                   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -333,11 +359,23 @@ router.get("/html/:id", async (req, res) => {
                   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
               }
             }
+
+            @media screen and (max-width: 768px) {
+              .header-image {
+                max-width: 100%;        
+                margin: -104px 0 -99px -40px;
+              }
+
+            }
           </style>
         </head>
         <body>
+
           <h1>Relatório de Check-In</h1>
           <div class="details-container">
+              <!--  <img src="../../assets/fotos/fotoHeader.png" --> 
+              <!--  alt="Logo Sobremidia" --> 
+              <!--  class="header-image">--> 
               <p><strong>Painel:</strong> ${checkin.panelName || checkin.panelId}</p>
               <p><strong>Data:</strong> ${new Date(checkin.createdAt._seconds * 1000).toLocaleString()}</p>
 
@@ -348,10 +386,10 @@ router.get("/html/:id", async (req, res) => {
                           <p><strong>Mídia:</strong> ${media.nomeMidia || media.idMidia}</p>
                           <p><strong>Cliente:</strong> ${media.cliente || "-"}</p>
 
-                          <h3>Foto Esperada</h3>
+                          <h3>Preview da Mídia</h3>
                           <div class="photo-group">
                               <img src="https://s3.amazonaws.com/4yousee-files/sobremidia/common/videos/thumbnails/i_${media.idMidia}.png"
-                                  alt="Foto Esperada" class="checkin-image">
+                                  alt="Preview da Mídia" class="checkin-image">
                           </div>
 
                           <h3>Fotos da Mídia</h3>
@@ -389,6 +427,13 @@ router.get("/html/:id", async (req, res) => {
                   `).join("")}
               </ul>
           </div>
+
+            <!--  <div class="footer-container"> --> 
+              <!--  <img src="../../assets/fotos/fotoFooter.png" --> 
+              <!--  alt="Rodapé Sobremidia" --> 
+              <!--  class="footer-image">--> 
+            <!--  </div>--> 
+
           <div style="display: none;" id="image-modal" class="modal">
               <span class="close">&times;</span>
               <img class="modal-content" id="modal-img">
