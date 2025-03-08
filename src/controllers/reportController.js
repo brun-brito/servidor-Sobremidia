@@ -153,7 +153,7 @@ async function displayReport(req, res) {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Relatório ${reportId}</title>
                 <style>
-                    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
+                    body { font-family: Arial, sans-serif;max-width: 900px;margin: 20px auto;padding: 20px;background-color: #f4f4f4;color: #333;border-radius: 10px; }
                     h1, h2 { color: #333; } .report-summary { background: white; display: inline-block;padding: 15px;border-radius: 5px;box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);max-width: 600px;text-align: left;}
                     ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
                     li { background: white; margin: 10px 0; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }
