@@ -64,18 +64,13 @@ async function displayReport(req, res) {
                                         <li>
                                             <span>Total:</span> 
                                             <a href="#" class="view-total-link"
-                                              data-player-id="${playerId}" 
-                                              data-media-id="${mediaId}" 
-                                              data-logs='${JSON.stringify(logsByDate)}'>
+                                                data-player-id="${playerId}" 
+                                                data-media-id="${mediaId}" 
+                                                data-logs='${JSON.stringify(logsByDate)}'>
                                                 ${totalAparicoes} inserções
                                             </a>
                                         </li>
                                     </ul>
-                                </div>
-                                <div id="totalMediaAparicoesModal-${playerId}-${mediaId}" class="modal">
-                                    <div class="modal-content">
-                                        <ul id="daily-aparicoes-list-${playerId}-${mediaId}"></ul>
-                                    </div>
                                 </div>
                             `;
                         }).join("")}
@@ -122,7 +117,7 @@ async function displayReport(req, res) {
                                     }:</strong></p>
                                     <ul>
                                         <li>
-                                            <strong>Total:</strong> 
+                                            <span>Total:</span> 
                                             <a href="#" class="view-total-link"
                                                 data-player-id="${playerId}" 
                                                 data-media-id="${mediaId}" 
@@ -131,11 +126,6 @@ async function displayReport(req, res) {
                                             </a>
                                         </li>
                                     </ul>
-                                </div>
-                                <div id="totalPanelAparicoesModal-${playerId}-${mediaId}" class="modal">
-                                    <div class="modal-content">
-                                        <ul id="daily-aparicoes-list-${playerId}-${mediaId}"></ul>
-                                    </div>
                                 </div>
                             `;
                         }).join("")}
@@ -168,6 +158,18 @@ async function displayReport(req, res) {
                     @media(min-width: 768px) {.header-container {padding-bottom: 5px;} }
                     .footer-container {height: clamp(90px, 12vw, 150px);overflow: hidden;display: flex;justify-content: center;align-items: center;}
                     .footer-image {height: 100%;width: clamp(100%, 80vw, 100%);object-fit: cover;position: relative;}
+                    .modal {position: fixed;z-index: 1000;left: 0;top: 0;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.6);display: flex;justify-content: center;align-items: center;padding: 20px;}
+                    .modal-content {background-color: white;padding: 20px;border-radius: 8px;box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.4);width: 90%;max-width: 600px;max-height: 80vh;overflow-y: auto;text-align: center;}
+                    .modal-content ul {list-style: none;padding: 0;margin: 0;font-size: 14px;text-align: left;max-height: 60vh;overflow-y: auto;}
+                    .modal-content ul li {padding: 8px;border-bottom: 1px solid #ddd;}
+                    .modal-content a {color: #007bff;text-decoration: none;cursor: pointer;font-weight: bold;}
+                    .modal-content a:hover {text-decoration: underline;}
+                    .grid-container {display: grid;grid-template-columns: repeat(3, 1fr);gap: 10px;padding: 10px;max-height: 60vh;overflow-y: auto;}
+                    #detailed-aparicoes-list {grid-template-columns: 1fr 1fr 1fr 1fr;}
+                    .grid-item {background: #f4f4f4;padding: 8px;border-radius: 4px;text-align: center;}
+                    .modal-content button {background-color:rgba(255, 0, 0, 0.72);color: white;border: none;padding: 10px 20px;border-radius: 5px;cursor: pointer;font-size: 14px;margin-top: 10px;}
+                    .modal-content button:hover {background-color:rgb(179, 0, 0);}
+                    @keyframes fadeIn {from {opacity: 0;transform: scale(0.9);}to {opacity: 1;transform: scale(1);}}
                 </style>
             </head>
             <body>
@@ -191,6 +193,22 @@ async function displayReport(req, res) {
                 <h2>Inserções por Painel</h2>
                 <ul>${panelHTML || "<p>Nenhum painel registrado.</p>"}</ul>
 
+                <div style="display: none;" id="totalAparicoesModal" class="modal">
+                    <div class="modal-content">
+                        <h2>Detalhes de Inserções</h2>
+                        <ul id="daily-aparicoes-list"></ul>
+                        <button onclick="document.getElementById('totalAparicoesModal').style.display='none'">Fechar</button>
+                    </div>
+                </div>
+
+                <div style="display: none;" id="dailyAparicoesModal" class="modal">
+                    <div class="modal-content">
+                        <h2>Horários das Inserções</h2>
+                        <ul id="detailed-aparicoes-list"></ul>
+                        <button onclick="document.getElementById('dailyAparicoesModal').style.display='none'">Fechar</button>
+                    </div>
+                </div>
+
                 <div class="footer-container">
                     <img src="../../assets/fotos/fotoFooter.png" 
                     alt="Rodapé Sobremidia" 
@@ -211,7 +229,82 @@ async function displayReport(req, res) {
                             button.innerHTML = 'Ver detalhes <i class="fas fa-chevron-right"></i>';
                         }
                     }
+
+                    document.addEventListener("DOMContentLoaded", function () {
+                        document.body.addEventListener("click", function (event) {
+                            if (event.target.closest(".view-total-link")) {
+                                event.preventDefault();
+
+                                const link = event.target.closest(".view-total-link");
+                                const playerId = link.getAttribute("data-player-id");
+                                const mediaId = link.getAttribute("data-media-id");
+                                const logsRaw = link.getAttribute("data-logs");
+
+
+                                let logs;
+                                try {
+                                    logs = JSON.parse(logsRaw);
+                                } catch (error) {
+                                    console.error("Erro ao fazer parse dos logs:", error);
+                                    return;
+                                }
+
+                                const modal = document.getElementById("totalAparicoesModal");
+                                const modalContent = modal.querySelector(".modal-content ul");
+                                modalContent.innerHTML = "";
+
+                                const sortedDates = Object.entries(logs).sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB));
+
+                                sortedDates.forEach(([date, times]) => {
+                                    const totalInsercoes = times.length;
+                                    const formattedDate = moment(date).format("DD/MM/YYYY");
+
+                                    const listItem = document.createElement("li");
+                                    listItem.innerHTML = \`
+                                        <strong>\${formattedDate}:</strong> 
+                                        <a href="#" class="daily-insercoes-link" 
+                                            data-date="\${date}" 
+                                            data-times='\${JSON.stringify(times)}'>
+                                            \${totalInsercoes} inserções
+                                        </a>
+                                    \`;
+                                    modalContent.appendChild(listItem);
+                                });
+
+                                modal.style.display = "flex";
+                            }
+
+                            if (event.target.closest(".daily-insercoes-link")) {
+                                event.preventDefault();
+
+                                const link = event.target.closest(".daily-insercoes-link");
+                                const date = link.getAttribute("data-date");
+                                const times = JSON.parse(link.getAttribute("data-times"));
+                                const sortedTimes = times.sort();
+
+                                const detailedModal = document.getElementById("dailyAparicoesModal");
+                                const detailedContent = detailedModal.querySelector(".modal-content ul");
+                                detailedContent.innerHTML = "";
+
+                                sortedTimes.forEach((time, index) => {
+                                    const gridItem = document.createElement("div");
+                                    gridItem.classList.add("grid-item");
+                                    gridItem.innerHTML = \`
+                                        <strong>\${index + 1} -</strong> \${time}
+                                    \`;
+                                    detailedContent.appendChild(gridItem);
+                                });
+
+                                detailedModal.style.display = "flex"; // Exibe o modal secundário
+                            }
+
+                            if (event.target.id === "totalAparicoesModal" || event.target.id === "dailyAparicoesModal") {
+                                event.target.style.display = "none";
+                            }
+                        });
+                    });
                 </script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
             </body>
             </html>
         `;
@@ -219,7 +312,7 @@ async function displayReport(req, res) {
         res.setHeader("Content-Type", "text/html");
         res.send(reportHTML);
     } catch (error) {
-        console.error("[ERROR] Erro ao exibir relatório:", error.message);
+        console.error("[ERROR] Erro ao exibir relatório:", error);
         res.status(500).send("Erro ao exibir relatório.");
     }
 }
