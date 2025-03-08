@@ -116,7 +116,8 @@ exports.createCheckinService = async (data) => {
       createdAt: FieldValue.serverTimestamp(),
       panelId: data.panelId,
       panelName: data.panelName,
-      midias: data.midias
+      midias: data.midias,
+      senha: Math.random().toString(36).slice(-5),
     };
     
     const docRef = await db.collection('checkin').add(checkinData);
