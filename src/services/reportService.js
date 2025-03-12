@@ -5,7 +5,7 @@ const analyzeLogs = require("../utils/analyzeLogs");
 const { db }= require("../config/firebase");
 
 async function generateReport(req, res) {
-    const { startDate, startTime, endDate, endTime, mediaId, playerId, clientes } = req.body;
+    const { startDate, startTime, endDate, endTime, mediaId, playerId, clientes, user } = req.body;
 
     const requestBody = {
         type: "detailed",
@@ -47,6 +47,7 @@ async function generateReport(req, res) {
             createdAt: new Date(),
             clientes: clientes || null,
             senha: Math.random().toString(36).slice(-5),
+            user: user || null
         });
 
         console.log(`[INFO] Relatório criado com sucesso. ID: ${reportId}`);
