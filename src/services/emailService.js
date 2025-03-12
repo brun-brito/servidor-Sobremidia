@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const juice = require('juice');
 require('dotenv').config();
+const pdf = require('../services/pdfService');
 
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -12,15 +13,26 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-async function sendMailCheckin(mailClient, mailSeller, checkinId, password){
-    const reportLink = `https://us-central1-sobremidia-ce.cloudfunctions.net/v1/checkin/html/${checkinId}`;
+async function sendMailCheckin(mailClient, mailSeller, password, checkin){
+    const reportLink = `https://us-central1-sobremidia-ce.cloudfunctions.net/v1/checkin/html/${checkin.id}`;
+    let pdfBuffer;
+    let sendWithoutPDF = false;
+
+    try {
+        console.log("Gerando PDF checkin...");
+        pdfBuffer = await pdf.createPDFCheckin(checkin);
+        console.log("PDF gerado com sucesso!");
+    } catch (error) {
+        console.error("[ERROR] Falha ao gerar o PDF. Tentando enviar sem anexo.", error.message);
+        sendWithoutPDF = true;
+    }
 
     const inlineHtml = `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f4f4f4;">
             <div style="max-width: 500px; margin: auto; padding: 20px; background: white; border-radius: 5px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1);">
                 <h2 style="color: #24d464;">Seu Relatório Está Pronto!</h2>
                 <p>Olá,</p>
-                <p>O relatório de checkin já está disponível para acesso. Utilize o link abaixo:</p>
+                <p>O relatório de checkin já está disponível para acesso. Baixe o arquivo anexado, ou utilize o link abaixo:</p>
                 <a href="${reportLink}" style="display: inline-block; background: #24d464; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acessar Relatório</a>
                 <p><strong>Senha de acesso:</strong> <span style="background: #f1f1f1; padding: 5px 10px; border-radius: 5px;">${password}</span></p>
                 <p>Não compartilhe esta senha com terceiros.</p>
@@ -30,11 +42,17 @@ async function sendMailCheckin(mailClient, mailSeller, checkinId, password){
             </div>
         </div>
     `;
+
+    const dia = new Date();
+    const fileName = `relatorio_checkin-${checkin.midias[0].cliente}_${dia.getDate()}-${dia.getMonth() + 1}.pdf`;
     const mailOptions = {
         from: `"OPEC | Sobremídia" <${process.env.MAIL_SENDER}>`,
         to: [mailClient, mailSeller],
         subject: "Relatório de checkin",
         html: inlineHtml,
+        attachments: pdfBuffer
+            ? [{ filename: fileName, content: pdfBuffer, encoding: "base64" }]
+            : []
     }
     
     try {
@@ -45,8 +63,18 @@ async function sendMailCheckin(mailClient, mailSeller, checkinId, password){
     }
 }
 
-async function sendMailReport(mailClient, mailSeller, reportId, password) {
+async function sendMailReport(mailClient, mailSeller, reportId, password, data) {
     const reportLink = `https://us-central1-sobremidia-ce.cloudfunctions.net/v1/reports/html/${reportId}`;
+    let pdfBuffer;
+    let sendWithoutPDF = false;
+    try {
+        console.log("Gerando PDF relatorio...");
+        pdfBuffer = await pdf.createPDFRelatorio(data);
+        console.log("PDF gerado com sucesso!");
+    } catch (error) {
+        console.error("[ERROR] Falha ao gerar o PDF. Tentando enviar sem anexo.", error.message);
+        sendWithoutPDF = true;
+    }
 
     // HTML formatado para o e-mail
     const emailHtml = `
@@ -54,7 +82,7 @@ async function sendMailReport(mailClient, mailSeller, reportId, password) {
             <div style="max-width: 500px; margin: auto; padding: 20px; background: white; border-radius: 5px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1);">
                 <h2 style="color: #24d464;">Seu Relatório Está Pronto!</h2>
                 <p>Olá,</p>
-                <p>O relatório de inserções já está disponível para acesso. Utilize o link abaixo:</p>
+                <p>O relatório de inserções já está disponível para acesso. Baixe o arquivo anexado, ou utilize o link abaixo:</p>
                 <a href="${reportLink}" style="display: inline-block; background: #24d464; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acessar Relatório</a>
                 <p><strong>Senha de acesso:</strong> <span style="background: #f1f1f1; padding: 5px 10px; border-radius: 5px;">${password}</span></p>
                 <p>Não compartilhe esta senha com terceiros.</p>
@@ -66,16 +94,29 @@ async function sendMailReport(mailClient, mailSeller, reportId, password) {
     `;
 
     const inlineHtml = juice(emailHtml);
+    const dia = new Date();
+    const fileName = `relatorio_completo-${data.clientes}_${dia.getDate()}-${dia.getMonth() + 1}.pdf`;
 
     const mailOptions = {
         from: `"OPEC | Sobremídia" <${process.env.MAIL_SENDER}>`,
         to: [mailClient, mailSeller],
         subject: "Relatório de Inserções - Acesso",
-        html: inlineHtml
+        html: inlineHtml,
+        attachments: sendWithoutPDF
+            ? [] // Se falhar envia sem anexo
+            : [
+                    {
+                        filename: fileName,
+                        content: pdfBuffer,
+                        encoding: "base64"
+                    }
+                ]
     };
 
     try {
+        console.log("Enviando e-mail...");
         const info = await transporter.sendMail(mailOptions);
+        console.log(`E-mail enviado com sucesso para (${mailOptions.to}):`, info.response);
         return info;
     } catch (error) {
         throw new Error(`Erro ao enviar o email: ${error.message}`);

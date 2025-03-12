@@ -2,14 +2,14 @@ const emailService = require("../services/emailService");
 const { db } = require("../config/firebase");
 
 async function handleSendMailCheckin(req, res) {
-    const { mailClient, mailSeller, checkinId } = req.body;
+    const { mailClient, mailSeller, checkIn } = req.body;
     
-      if (!mailClient || !checkinId || !mailSeller) {
+      if (!mailClient || !checkIn || !mailSeller) {
           return res.status(400).json({ success: false, message: "Parâmetros inválidos." });
       }
   
       try {
-          const reportRef = db.collection("checkin").doc(checkinId);
+          const reportRef = db.collection("checkin").doc(checkIn.id);
           const reportDoc = await reportRef.get();
   
           if (!reportDoc.exists) {
@@ -18,7 +18,7 @@ async function handleSendMailCheckin(req, res) {
   
           const password = reportDoc.data().senha;
   
-          await emailService.sendMailCheckin(mailClient, mailSeller, checkinId, password);
+          await emailService.sendMailCheckin(mailClient, mailSeller, password, checkIn);
   
           res.status(200).json({ success: true, message: "E-mail enviado com sucesso!" });
       } catch (error) {
@@ -28,7 +28,7 @@ async function handleSendMailCheckin(req, res) {
   }
 
 async function handleSendMailReport(req, res) {
-    const { mailClient, mailSeller, reportId } = req.body;
+    const { mailClient, mailSeller, reportId, data } = req.body;
 
     if (!mailClient || !reportId || !mailSeller) {
         return res.status(400).json({ success: false, message: "Parâmetros inválidos." });
@@ -44,7 +44,7 @@ async function handleSendMailReport(req, res) {
 
         const password = reportDoc.data().senha;
 
-        await emailService.sendMailReport(mailClient, mailSeller, reportId, password);
+        await emailService.sendMailReport(mailClient, mailSeller, reportId, password, data);
 
         res.status(200).json({ success: true, message: "E-mail enviado com sucesso!" });
     } catch (error) {
