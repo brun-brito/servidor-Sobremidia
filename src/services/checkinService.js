@@ -117,6 +117,7 @@ exports.createCheckinService = async (data) => {
       panelId: data.panelId,
       panelName: data.panelName,
       midias: data.midias,
+      user: data.user,
       senha: Math.random().toString(36).slice(-5),
     };
     

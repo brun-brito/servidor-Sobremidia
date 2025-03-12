@@ -141,7 +141,7 @@ exports.displayCheckin = async (req, res) => {
                           ${media.videosMidia.map(video => `
                               <li class="video-item">
                                   <video controls class="checkin-video">
-                                      <source src="/proxy?url=${encodeURIComponent(video.url)}" type="video/mp4">
+                                      <source src="${video.url}" type="video/mp4">
                                   </video>
                                   <p class="timestamp">${moment(video.timestamp).format("DD/MM/YYYY, HH:mm:ss")}</p>
                               </li>
