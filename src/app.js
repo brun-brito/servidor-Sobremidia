@@ -5,6 +5,7 @@ const proxyRouter = require("./routes/proxy");
 const checkinRoute = require("./routes/checkin");
 const emailRoute = require("./routes/email");
 const userRoute = require("./routes/user");
+const pdfRoute = require("./routes/pdf");
 const verificaInsercoesRoute = require("./routes/verificaInsercoes");
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -27,11 +28,7 @@ app.use("/proxy", proxyRouter);
 app.use("/checkin", checkinRoute);
 app.use("/email", emailRoute);
 app.use("/user", userRoute);
+app.use("/pdf", pdfRoute);
 app.use("/verifica-insercoes", verificaInsercoesRoute);
-
-
-// app.listen(PORT, () => {
-//     console.log(`[INFO] Servidor rodando na porta ${PORT}`);
-// });
 
 module.exports = app;
