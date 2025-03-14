@@ -2,6 +2,7 @@ const nodemailer = require('nodemailer');
 const juice = require('juice');
 require('dotenv').config();
 const pdf = require('../services/pdfService');
+const { db } = require("../config/firebase");
 
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -13,19 +14,9 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-async function sendMailCheckin(mailClient, mailSeller, password, checkin){
-    const reportLink = `https://us-central1-sobremidia-ce.cloudfunctions.net/v1/checkin/html/${checkin.id}`;
-    let pdfBuffer;
-    let sendWithoutPDF = false;
-
-    try {
-        console.log("Gerando PDF checkin...");
-        pdfBuffer = await pdf.createPDFCheckin(checkin);
-        console.log("PDF gerado com sucesso!");
-    } catch (error) {
-        console.error("[ERROR] Falha ao gerar o PDF. Tentando enviar sem anexo.", error.message);
-        sendWithoutPDF = true;
-    }
+async function sendMailCheckin(emailId, mailClient, mailSeller, password, checkins, pdfBuffer) {
+    const checkinIds = checkins.map(checkin => checkin.id).join("&");
+    const reportLink = `https://us-central1-sobremidia-ce.cloudfunctions.net/v1/checkin/html/${checkinIds}`;
 
     const inlineHtml = `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f4f4f4;">
@@ -44,8 +35,11 @@ async function sendMailCheckin(mailClient, mailSeller, password, checkin){
     `;
 
     const dia = new Date();
-    const fileName = `relatorio_checkin-${checkin.midias[0].cliente}_${dia.getDate()}-${dia.getMonth() + 1}.pdf`;
-    const mailOptions = {
+    const clientesUnicos = [...new Set(checkins.map(c => c.midias?.[0]?.cliente || "Desconhecido"))];
+    const clientesFormatados = clientesUnicos.join("_").replace(/\s+/g, "-");
+    const fileName = `relatorio_checkin-${clientesFormatados}_${dia.getDate()}-${dia.getMonth() + 1}.pdf`;
+    
+        const mailOptions = {
         from: `"OPEC | Sobremídia" <${process.env.MAIL_SENDER}>`,
         to: [mailClient, mailSeller],
         subject: "Relatório de checkin",
@@ -56,10 +50,40 @@ async function sendMailCheckin(mailClient, mailSeller, password, checkin){
     }
     
     try {
+        console.log(`[INFO] Enviando e-mail para ${mailClient}, ${mailSeller}`);
+
+        await db.collection("emails").doc(emailId).update({ status: "em andamento" });
+
         const info = await transporter.sendMail(mailOptions);
+        await db.collection("emails").doc(emailId).update({ status: "finalizado" });
+
+        console.log(`[SUCCESS] E-mail enviado com sucesso! ID: ${emailId}`);
         return info;
     } catch (error) {
-        throw new Error(`Erro ao enviar o email: ${error.message}`);
+        console.error(`[ERROR] Falha ao enviar e-mail com anexo para ID: ${emailId}:`, error.message);
+
+        // Tentar enviar novamente SEM o attachment
+        try {
+            console.log(`[INFO] Tentando reenviar e-mail sem anexo para ID: ${emailId}...`);
+            const mailOptionsWithoutAttachment = { ...mailOptions, attachments: [] };
+
+            const infoWithoutAttachment = await transporter.sendMail(mailOptionsWithoutAttachment);
+            await db.collection("emails").doc(emailId).update({
+                status: "finalizado",
+                note: "Enviado sem anexo devido ao tamanho do arquivo."
+            });
+
+            console.log(`[SUCCESS] E-mail reenviado sem anexo para ID: ${emailId}`);
+            return infoWithoutAttachment;
+        } catch (errorRetry) {
+            console.error(`[ERROR] Falha ao reenviar e-mail sem anexo para ID: ${emailId}:`, errorRetry.message);
+            await db.collection("emails").doc(emailId).update({
+                status: "erro",
+                errorMessage: `Falha ao enviar com e sem anexo: ${errorRetry.message}`,
+            });
+
+            throw new Error(`Erro ao enviar e-mail com e sem anexo: ${errorRetry.message}`);
+        }
     }
 }
 

@@ -208,7 +208,7 @@ Total de Painéis: ${summary.totalPlayers || 0}
     return Buffer.from(doc.output("arraybuffer"));
 };
 
-const createPDFCheckin = async (checkIn) => {
+const createPDFCheckin = async (checkIns) => {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     // console.log("CHECKIN ENVIADO",checkIn);
 
@@ -222,199 +222,208 @@ const createPDFCheckin = async (checkIn) => {
     const startX = 15;
     let column = 0;
     const reportDate = moment().format("DD/MM/YYYY, HH:mm:ss");
-
-    if (headerBase64 && footerBase64) {
-        addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-    }
-
-    doc.setFontSize(16);
-    doc.text("Relatório de Check-In de Mídias", 10, yOffset);
-    yOffset += 7;
-    doc.setFontSize(10);
-    doc.text(`Gerado em: ${reportDate}`, 10, yOffset);
-    yOffset += 7;
-
-    doc.setDrawColor(0);
-    doc.setLineWidth(0.5);
-    doc.line(10, yOffset, pageWidth - 10, yOffset);
-    yOffset += 7;
-
-    doc.setFontSize(12);
-    doc.text(`Painel: ${checkIn.panelName}`, 15, yOffset);
-    yOffset += 7;
     
-    const createdAt = checkIn.createdAt?._seconds
-    ? moment.unix(checkIn.createdAt._seconds).format("DD/MM/YYYY HH:mm:ss")
-    : "Data desconhecida";
-    doc.text(`Data: ${createdAt}`, 15, yOffset);
-    yOffset += 7;
-    doc.text(`Mídia: ${checkIn.midias[0].nomeMidia || checkIn.midias[0].idMidia}`, 15, yOffset);
-    yOffset += 7;
-    doc.text(`Cliente: ${checkIn.midias[0].cliente || "-"}`, 15, yOffset);
-    yOffset += 8;
+    for (let i = 0; i < checkIns.length; i++) {
+        const checkIn = checkIns[i];
 
-    doc.setDrawColor(180);
-    doc.setLineWidth(0.5);
-    doc.line(10, yOffset, pageWidth - 10, yOffset);
-    yOffset += 7;
-    doc.setDrawColor(0);
-
-    const media = checkIn.midias[0];
-
-    // Preview da Mídia
-    doc.setFillColor(230, 230, 230);
-    doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("Preview da Mídia", pageWidth / 2, yOffset, { align: "center" });
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    yOffset += 12;
-    column = 0;
-
-    if (media.idMidia) {
-        const thumbnailUrl = `${BASE_THUMBNAIL_URL}${media.idMidia}.png`;
-        const base64Thumb = await loadImageAsBase64(thumbnailUrl);
-    
-        if (base64Thumb) {
-            doc.addImage(base64Thumb, "JPEG", 15, yOffset, 40, 30);
-        } else {
-            console.warn("Thumbnail não carregada:", media.idMidia);
+        if (i > 0) {
+            doc.addPage();
+            yOffset = contentStartY + 10;
         }
-    }
-    yOffset += 40;
 
-    // Fotos da Mídia
-    if (media.fotosMidia.length > 0) {
+        if (headerBase64 && footerBase64) {
+            addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+        }
+
+        doc.setFontSize(16);
+        doc.text("Relatório de Check-In de Mídias", 10, yOffset);
+        yOffset += 7;
+        doc.setFontSize(10);
+        doc.text(`Gerado em: ${reportDate}`, 10, yOffset);
+        yOffset += 7;
+
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.5);
+        doc.line(10, yOffset, pageWidth - 10, yOffset);
+        yOffset += 7;
+
+        doc.setFontSize(12);
+        doc.text(`Painel: ${checkIn.panelName}`, 15, yOffset);
+        yOffset += 7;
+        
+        const createdAt = checkIn.createdAt?._seconds
+        ? moment.unix(checkIn.createdAt._seconds).format("DD/MM/YYYY HH:mm:ss")
+        : "Data desconhecida";
+        doc.text(`Data: ${createdAt}`, 15, yOffset);
+        yOffset += 7;
+        doc.text(`Mídia: ${checkIn.midias[0].nomeMidia || checkIn.midias[0].idMidia}`, 15, yOffset);
+        yOffset += 7;
+        doc.text(`Cliente: ${checkIn.midias[0].cliente || "-"}`, 15, yOffset);
+        yOffset += 8;
+
+        doc.setDrawColor(180);
+        doc.setLineWidth(0.5);
+        doc.line(10, yOffset, pageWidth - 10, yOffset);
+        yOffset += 7;
+        doc.setDrawColor(0);
+
+        const media = checkIn.midias[0];
+
+        // Preview da Mídia
         doc.setFillColor(230, 230, 230);
         doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
-        doc.text("Fotos da Mídia", pageWidth / 2, yOffset, { align: "center" });
+        doc.text("Preview da Mídia", pageWidth / 2, yOffset, { align: "center" });
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         yOffset += 12;
-        let index = 1;
+        column = 0;
 
-        for (const foto of media.fotosMidia) {
-            if (yOffset + imgHeight > contentEndY) {
-                doc.addPage();
-                addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-                yOffset = contentStartY + 10;
-                column = 0;
+        if (media.idMidia) {
+            const thumbnailUrl = `${BASE_THUMBNAIL_URL}${media.idMidia}.png`;
+            const base64Thumb = await loadImageAsBase64(thumbnailUrl);
+        
+            if (base64Thumb) {
+                doc.addImage(base64Thumb, "JPEG", 15, yOffset, 40, 30);
+            } else {
+                console.warn("Thumbnail não carregada:", media.idMidia);
             }
+        }
+        yOffset += 40;
 
-            const xPosition = startX + (column * (imgWidth + colSpacing));
+        // Fotos da Mídia
+        if (media.fotosMidia.length > 0) {
+            doc.setFillColor(230, 230, 230);
+            doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("Fotos da Mídia", pageWidth / 2, yOffset, { align: "center" });
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            yOffset += 12;
+            let index = 1;
 
-            try {
-                const mediaUrl = foto.url;
-                const base64Media = await loadImageAsBase64(mediaUrl);
-                if (base64Media) {
+            for (const foto of media.fotosMidia) {
+                if (yOffset + imgHeight > contentEndY) {
+                    doc.addPage();
+                    addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+                    yOffset = contentStartY + 10;
+                    column = 0;
+                }
+
+                const xPosition = startX + (column * (imgWidth + colSpacing));
+
+                try {
+                    const mediaUrl = foto.url;
+                    const base64Media = await loadImageAsBase64(mediaUrl);
+                    if (base64Media) {
+                        doc.setFontSize(12);
+                        doc.text(`${index})`, xPosition - 3, yOffset + 3);
+                        doc.addImage(base64Media, "JPEG", xPosition + 5, yOffset, imgWidth, imgHeight);
+                        doc.setFontSize(10);
+                        doc.text(`Tirada em: ${moment(foto.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, xPosition + 5, yOffset + imgHeight + 5);                } else {
+                        console.warn("Erro ao carregar imagem da mídia:", foto.url);
+                    }
+                } catch (error) {
+                    console.warn("Erro ao carregar imagem da mídia:", error);
+                }
+
+                column++;
+                index++;
+
+                if (column >= 2) {
+                    column = 0;
+                    yOffset += imgHeight + 20;
+                }
+            }
+        }
+
+        // Fotos Entorno
+        if (media.fotosEntorno.length > 0) {
+            doc.addPage();
+            addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+            yOffset = contentStartY + 10;
+            doc.setFillColor(230, 230, 230);
+            doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("Fotos do Entorno", pageWidth / 2, yOffset, { align: "center" });
+            doc.setFont("helvetica", "normal");
+            yOffset += 12;
+            column = 0;
+            index = 1;
+
+            for (const foto of media.fotosEntorno) {
+                if (yOffset + 80 > contentEndY) {
+                    doc.addPage();
+                    addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+                    yOffset = contentStartY + 10;
+                    column = 0;
+                }
+
+                const xPosition = startX + (column * (imgWidth + colSpacing));
+
+                try {
+                    const entornoUrl = foto.url;
+                    const base64Entorno = await loadImageAsBase64(entornoUrl);
                     doc.setFontSize(12);
                     doc.text(`${index})`, xPosition - 3, yOffset + 3);
-                    doc.addImage(base64Media, "JPEG", xPosition + 5, yOffset, imgWidth, imgHeight);
+                    doc.addImage(base64Entorno, "JPEG", xPosition + 5, yOffset, imgWidth, imgHeight);
                     doc.setFontSize(10);
-                    doc.text(`Tirada em: ${moment(foto.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, xPosition + 5, yOffset + imgHeight + 5);                } else {
-                    console.warn("Erro ao carregar imagem da mídia:", foto.url);
+                        doc.text(`Tirada em: ${moment(foto.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, xPosition + 5, yOffset + imgHeight + 5);            } catch (error) {
+                    console.warn("Erro ao carregar imagem do entorno:", error);
                 }
-            } catch (error) {
-                console.warn("Erro ao carregar imagem da mídia:", error);
-            }
+                column++;
+                index++;
 
-            column++;
-            index++;
-
-            if (column >= 2) {
-                column = 0;
-                yOffset += imgHeight + 20;
+                if (column >= 2) {
+                    column = 0;
+                    yOffset += imgHeight + 20;
+                }
             }
         }
-    }
 
-    // Fotos Entorno
-    if (media.fotosEntorno.length > 0) {
-        doc.addPage();
-        addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-        yOffset = contentStartY + 10;
-        doc.setFillColor(230, 230, 230);
-        doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Fotos do Entorno", pageWidth / 2, yOffset, { align: "center" });
-        doc.setFont("helvetica", "normal");
-        yOffset += 12;
-        column = 0;
-        index = 1;
+        // Links Vídeos
+        if (media.videosMidia.length > 0) {
+            doc.addPage();
+            addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+            yOffset = contentStartY + 10;
+            doc.setFillColor(230, 230, 230);
+            doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("Links dos Vídeos", pageWidth / 2, yOffset, { align: "center" });
+            doc.setFont("helvetica", "normal");
+            yOffset += 12;
+            const maxLineWidth = pageWidth - 30;
+            index = 1;
 
-        for (const foto of media.fotosEntorno) {
-            if (yOffset + 80 > contentEndY) {
-                doc.addPage();
-                addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-                yOffset = contentStartY + 10;
-                column = 0;
-            }
-
-            const xPosition = startX + (column * (imgWidth + colSpacing));
-
-            try {
-                const entornoUrl = foto.url;
-                const base64Entorno = await loadImageAsBase64(entornoUrl);
+            for (const video of media.videosMidia) {
+                if (yOffset + 15 > contentEndY) {
+                    doc.addPage();
+                    addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+                    yOffset = contentStartY + 10;
+                }
+        
+                // Divide o link em várias linhas se for muito longo
+                const wrappedText = doc.splitTextToSize(video.url, maxLineWidth);
                 doc.setFontSize(12);
-                doc.text(`${index})`, xPosition - 3, yOffset + 3);
-                doc.addImage(base64Entorno, "JPEG", xPosition + 5, yOffset, imgWidth, imgHeight);
+                doc.text(`${index})`, 10, yOffset + 1);
                 doc.setFontSize(10);
-                    doc.text(`Tirada em: ${moment(foto.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, xPosition + 5, yOffset + imgHeight + 5);            } catch (error) {
-                console.warn("Erro ao carregar imagem do entorno:", error);
+        
+                doc.setTextColor(0, 0, 255);
+                wrappedText.forEach((line, index) => {
+                    doc.textWithLink(line, 15, yOffset + (index * 5), { url: video.url });
+                });
+                doc.setTextColor(0, 0, 0);
+        
+                yOffset += (wrappedText.length * 5);
+                doc.text(`Gravado em: ${moment(video.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, 15, yOffset);
+        
+                yOffset += 10;
+                index++;
             }
-            column++;
-            index++;
-
-            if (column >= 2) {
-                column = 0;
-                yOffset += imgHeight + 20;
-            }
-        }
-    }
-
-    // Links Vídeos
-    if (media.videosMidia.length > 0) {
-        doc.addPage();
-        addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-        yOffset = contentStartY + 10;
-        doc.setFillColor(230, 230, 230);
-        doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Links dos Vídeos", pageWidth / 2, yOffset, { align: "center" });
-        doc.setFont("helvetica", "normal");
-        yOffset += 12;
-        const maxLineWidth = pageWidth - 30;
-        index = 1;
-
-        for (const video of media.videosMidia) {
-            if (yOffset + 15 > contentEndY) {
-                doc.addPage();
-                addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-                yOffset = contentStartY + 10;
-            }
-    
-            // Divide o link em várias linhas se for muito longo
-            const wrappedText = doc.splitTextToSize(video.url, maxLineWidth);
-            doc.setFontSize(12);
-            doc.text(`${index})`, 10, yOffset + 1);
-            doc.setFontSize(10);
-    
-            doc.setTextColor(0, 0, 255);
-            wrappedText.forEach((line, index) => {
-                doc.textWithLink(line, 15, yOffset + (index * 5), { url: video.url });
-            });
-            doc.setTextColor(0, 0, 0);
-    
-            yOffset += (wrappedText.length * 5);
-            doc.text(`Gravado em: ${moment(video.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, 15, yOffset);
-    
-            yOffset += 10;
-            index++;
         }
     }
 

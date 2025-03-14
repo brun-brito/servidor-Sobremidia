@@ -9,6 +9,7 @@ const pdfRoute = require("./routes/pdf");
 const verificaInsercoesRoute = require("./routes/verificaInsercoes");
 const PORT = process.env.PORT || 3000;
 const app = express();
+const session = require("express-session");
 
 app.use(cors({
     origin: "*", // Permite todas as origens
@@ -16,6 +17,15 @@ app.use(cors({
     allowedHeaders: ["Content-Type", "Authorization"],
     exposedHeaders: ["Content-Type", "Authorization"],
 }));
+
+app.use(session({
+    secret: "segredo-super-seguro",
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+        secure: false,
+    }
+  }));
 
 // Middleware para JSON
 app.use(express.json({ limit: "50mb" }));

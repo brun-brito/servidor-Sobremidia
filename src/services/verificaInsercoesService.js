@@ -274,12 +274,10 @@ async function processReportResult(reportResult, mediaToDetailsMap) {
         </html>
         `;
     
-        // Enviar e-mail informando que não houve problemas
         await sendMailWarning(successHtml);
         return;
     }    
 
-    // 📌 Gerar relatório em HTML
     let reportHtml = `
     <html>
     <head>
@@ -396,32 +394,5 @@ async function processReportResult(reportResult, mediaToDetailsMap) {
 
     await sendMailWarning(reportHtml);
 }
-
-// cron.schedule('0 2 * * *', async () => {
-// // async function teste() {
-//     console.log("[INFO] Executando cronJob para gerar e verificar relatório...");
-
-//     try {
-//         const reportData = await generateDailyReport();
-
-//         if (reportData && reportData.reportId) {
-//             console.log(`[INFO] Report ID gerado: ${reportData.reportId}. Iniciando monitoramento...`);
-//             const reportResult = await waitForReport(reportData.reportId);
-
-//             console.log("[INFO] Resultado do relatório recebido. Iniciando processamento...");
-//             processReportResult(reportResult, reportData.mediaToDetailsMap);
-//         } else {
-//             console.log("[ERROR] Falha ao gerar relatório. Nenhum reportId retornado.");
-//         }
-//     } catch (error) {
-//         console.error("[ERROR] Erro inesperado no cronJob:", error);
-//     }
-// }
-// , {
-//     scheduled: true,
-//     timezone: "America/Sao_Paulo"
-// });
-
-// teste();
 
 module.exports = { generateDailyReport, waitForReport, processReportResult };
