@@ -12,6 +12,8 @@ router.get("/", checkinController.getCheckIns);
 
 router.get("/:id", checkinController.getCheckinById);
 
+router.delete("/:id", checkinController.deleteCheckin);
+
 router.get("/html/:ids", checkinController.displayCheckin);
 
 router.post("/html/:ids", checkinController.authenticateCheckin);

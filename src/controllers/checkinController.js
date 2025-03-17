@@ -25,7 +25,6 @@ exports.getCheckIns = async (req, res) => {
 
 exports.getCheckinById = async (req, res) => {
     try {
-        console.log("executando teste agora!");
         const checkinRef = db.collection("checkin").doc(req.params.id);
         const doc = await checkinRef.get();
   
@@ -292,3 +291,19 @@ exports.authenticateCheckin = async (req, res) => {
         res.status(500).json({ error: "Erro no servidor" });
     }
 };
+
+exports.deleteCheckin = async(req, res) =>{
+    const checkinId = req.params.id;
+
+    if (!checkinId || checkinId.trim() === "") {
+        return res.status(400).json({ error: "ID do check-in é obrigatório." });
+    }
+
+    try {
+        await checkinService.deleteCheckin(checkinId);
+        return res.status(200).json({ message: "Check-in deletado com sucesso." });
+    } catch (error) {
+        console.error("[ERROR] Falha ao deletar check-in:", error);
+        return res.status(500).json({ error: error.message || "Erro interno do servidor." });
+    }
+}

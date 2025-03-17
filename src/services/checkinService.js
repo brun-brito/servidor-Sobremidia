@@ -53,44 +53,49 @@ exports.getCheckIns = async () => {
 exports.uploadPhoto = (req) => {
   return new Promise((resolve, reject) => {
     const busboy = Busboy({ headers: req.headers });
-    const uploads = [];
-    let checkinId;
+    const fields = {};
+    const fileBuffers = [];
+    let filename = "";
+    let mimetype = "";
 
     busboy.on("field", (fieldname, val) => {
-      if (fieldname === "checkinId") checkinId = val;
+      fields[fieldname] = val;
     });
 
-    busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
-      const timestamp = Date.now();
-      const fileName = `checkin/${checkinId}/${timestamp}_${filename}`;
-      const fileRef = bucket.file(fileName);
-      const writeStream = fileRef.createWriteStream({
-        metadata: { contentType: mimetype },
+    busboy.on("file", (fieldname, file, originalFilename, encoding, mime) => {
+      filename = originalFilename;
+      mimetype = mime;
+      file.on("data", (data) => {
+        fileBuffers.push(data);
       });
-
-      file.pipe(writeStream);
-
-      const promise = new Promise((resolve, reject) => {
-        file.on("end", () => writeStream.end());
-        writeStream.on("finish", async () => {
-          await fileRef.makePublic();
-          resolve(`https://storage.googleapis.com/sobremidia-ce.firebasestorage.app/${fileName}`);
-        });
-        writeStream.on("error", reject);
+      file.on("end", () => {
       });
-
-      uploads.push(promise);
     });
 
     busboy.on("finish", async () => {
-      if (!checkinId) {
+      
+      if (!fields.checkinId) {
+        console.error("Erro: checkinId não foi informado.");
         return reject(new Error("checkinId é obrigatório."));
       }
+      const finalBuffer = Buffer.concat(fileBuffers);
+
+      const timestamp = Date.now();
+      const filePath = `checkin/${fields.checkinId}/${timestamp}_${fields.originalName}`;
+      const fileRef = bucket.file(filePath);
 
       try {
-        const urls = await Promise.all(uploads);
-        resolve(urls);
+        await fileRef.save(finalBuffer, {
+          metadata: { contentType: mimetype },
+          resumable: false,
+        });
+
+        await fileRef.makePublic();
+        const url = `https://storage.googleapis.com/sobremidia-ce.firebasestorage.app/${filePath}`;
+
+        resolve(url);
       } catch (error) {
+        console.error("Erro ao salvar o arquivo:", error);
         reject(error);
       }
     });
@@ -201,3 +206,60 @@ exports.validatePassword = async (checkinId, password) => {
   const storedPassword = checkinDoc.data().senha;
   return { valid: password === storedPassword };
 };
+
+async function deleteMediaFromStorage(mediaLinks) {
+  const deletePromises = mediaLinks.map(async (url) => {
+      try {
+          // Extrair o caminho correto do arquivo no Firebase Storage
+          const regex = /https:\/\/storage\.googleapis\.com\/[^/]+\/(.+)/;
+          const match = url.match(regex);
+
+          if (!match || !match[1]) {
+              console.error(`Erro ao processar URL inválida: ${url}`);
+              return;
+          }
+
+          const filePath = match[1].split("?")[0];
+
+          await bucket.file(filePath).delete();
+          console.log(`Arquivo removido com sucesso: ${filePath}`);
+      } catch (error) {
+          console.error(`Erro ao remover arquivo: ${url}`, error);
+      }
+  });
+
+  await Promise.all(deletePromises);
+}
+
+exports.deleteCheckin = async(checkinId) => {
+  const checkinRef = db.collection("checkin").doc(checkinId);
+  const checkinDoc = await checkinRef.get();
+
+  if (!checkinDoc.exists) {
+      throw new Error("Check-in não encontrado!");
+  }
+
+  const checkinData = checkinDoc.data();
+  let mediaLinks = [];
+
+  if (checkinData.midias && Array.isArray(checkinData.midias)) {
+      checkinData.midias.forEach((midia) => {
+          if (midia.fotosMidia && Array.isArray(midia.fotosMidia)) {
+              mediaLinks.push(...midia.fotosMidia.map((foto) => foto.url));
+          }
+          if (midia.fotosEntorno && Array.isArray(midia.fotosEntorno)) {
+              mediaLinks.push(...midia.fotosEntorno.map((foto) => foto.url));
+          }
+          if (midia.videosMidia && Array.isArray(midia.videosMidia)) {
+              mediaLinks.push(...midia.videosMidia.map((video) => video.url));
+          }
+      });
+  }
+
+  console.log(`Mídias encontradas para exclusão: ${mediaLinks.length} arquivos.`);
+
+  await deleteMediaFromStorage(mediaLinks);
+  await checkinRef.delete();
+
+  console.log(`Check-in ${checkinId} removido com sucesso.`);
+}
