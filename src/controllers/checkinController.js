@@ -64,7 +64,7 @@ exports.displayCheckin = async (req, res) => {
                 </div>
                 <h1>Relatório de Checkin</h1>
                 <p><strong>Painel:</strong> ${checkin.panelName || checkin.panelId}</p>
-                <p><strong>Data:</strong> ${moment.unix(checkin.createdAt._seconds).format("DD/MM/YYYY, HH:mm:ss")}</p>
+                <p><strong>Data:</strong> ${moment.unix(checkin.createdAt._seconds).utcOffset('-03:00').format("DD/MM/YYYY, HH:mm:ss")}</p>
                 <ul class="media-list">
                     ${checkin.midias.map(media => `
                         <li class="media-item">
