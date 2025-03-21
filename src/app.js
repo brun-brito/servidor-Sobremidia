@@ -6,6 +6,8 @@ const checkinRoute = require("./routes/checkin");
 const emailRoute = require("./routes/email");
 const userRoute = require("./routes/user");
 const pdfRoute = require("./routes/pdf");
+const tokenRoute = require("./routes/token");
+const analyticsRoute = require("./routes/analytics");
 const verificaInsercoesRoute = require("./routes/verificaInsercoes");
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -39,6 +41,8 @@ app.use("/checkin", checkinRoute);
 app.use("/email", emailRoute);
 app.use("/user", userRoute);
 app.use("/pdf", pdfRoute);
+app.use("/token", tokenRoute);
+app.use("/analytics", analyticsRoute);
 app.use("/verifica-insercoes", verificaInsercoesRoute);
 
 module.exports = app;
