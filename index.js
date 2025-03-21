@@ -2,6 +2,7 @@ const functions = require("firebase-functions");
 const app = require("./src/app");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { generateDailyReport, waitForReport, processReportResult } = require("./src/services/verificaInsercoesService");
+const { updateDailyAnalytics } = require("./src/utils/dailyAnalyticsUpdate");
 
 exports.verifica_insercoes = onSchedule(
     {
@@ -12,6 +13,7 @@ exports.verifica_insercoes = onSchedule(
         minBackoffSeconds: 30, // Tempo mínimo entre tentativas (30s)
         maxBackoffSeconds: 120, // Tempo máximo entre tentativas (2 minutos)
         maxDoublings: 2, // O tempo entre re-tentativas dobrará até 2 vezes
+        timeoutSeconds: 300, // Tempo máximo de execução (5 minutos)
     },
     async (event) => {
         console.log("[INFO] Iniciando função verifica_insercoes...");
@@ -40,8 +42,39 @@ exports.verifica_insercoes = onSchedule(
     }
 );
 
+exports.atualiza_analytics = onSchedule(
+    {
+        schedule: "0 1 * * *", // Todos os dias às 01:00
+        timeZone: "America/Sao_Paulo", // Timezone SP
+        retryCount: 5, // Tentará rodar novamente até 3 vezes em caso de falha
+        maxRetrySeconds: 180, // Tempo máximo de re-tentativas (3 minutos)
+        minBackoffSeconds: 30, // Tempo mínimo entre tentativas (30s)
+        maxBackoffSeconds: 120, // Tempo máximo entre tentativas (2 minutos)
+        maxDoublings: 2, // O tempo entre re-tentativas dobrará até 2 vezes
+        timeoutSeconds: 300, // Tempo máximo de execução (5 minutos)
+    },
+    async (event) => {
+        console.log("[INFO] Iniciando função atualiza_analytics...");
 
-exports.v1 = functions.https.onRequest(app);
+        try {
+            await updateDailyAnalytics();
+            console.log("[INFO] Processo concluído com sucesso!");
+        } catch (error) {
+            console.error("[ERROR] Erro inesperado:", error);
+        }
+    }
+);
+
+// exports.v1 = functions.https.onRequest(app);
+exports.v1 = functions
+    .https.onRequest(
+        {
+            memory: "1GiB",
+            timeoutSeconds: 300,
+        },
+        app
+    );
+
 
 /**
  NÃO MEXER!
