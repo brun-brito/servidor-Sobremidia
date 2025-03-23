@@ -1,8 +1,6 @@
 const USER_MAIL = process.env.ANALYTICS_USER_MAIL;
 const PASSWORD = process.env.ANALYTICS_PASSWORD;
-const MAIN_URL = 'https://analytics.4yousee.com/pt';
 const API_URL = 'https://analytics.4yousee.com/api';
-const puppeteer = require('puppeteer');
 const axios = require('axios');
 const { db } = require("../config/firebase");
 
@@ -29,42 +27,26 @@ exports.loginAndExtractToken = async () => {
       console.warn('Token do Firestore inválido, gerando novo token...');
     }
   }
+  
+  try{
+    // faz o login via post e pega o token
+    const response = await axios.post(`${API_URL}/login`, {
+      username: USER_MAIL,
+      password: PASSWORD
+    });
 
-  // Gera novo token via Puppeteer
-  const browser = await puppeteer.launch({ headless: true });
-  const page = await browser.newPage();
-  let token = null;
-
-  page.on('response', async (response) => {
-    const url = response.url();
-    const headers = response.headers();
-
-    if (url.includes(API_URL) && headers['set-cookie']?.includes('token=')) {
-      const tokenMatch = headers['set-cookie'].match(/token=([^;]+)/);
-      if (tokenMatch && tokenMatch[1]) {
-        token = tokenMatch[1];
-      }
-    }
-  });
-
-  try {
-    await page.goto(MAIN_URL, { waitUntil: 'networkidle2', timeout: 15000 });
-
-    if (page.url().includes('/pt/login')) {
-      await page.type('input[name="username"]', USER_MAIL);
-      await page.type('input[name="password"]', PASSWORD);
-
-      await Promise.all([
-        page.click('button[type="submit"]'),
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }),
-      ]);
+    const cookies = response.headers['set-cookie'];
+    if (!cookies || cookies.length === 0) {
+      throw new Error('Cookies não encontrados na resposta.');
     }
 
-    if (!token) {
-      throw new Error('Token não encontrado após login.');
+    const tokenCookie = cookies.find(cookie => cookie.includes('token='));
+    if (!tokenCookie) {
+      throw new Error('Cookie "token" não encontrado.');
     }
 
-    console.log('Novo token obtido:', token);
+    const token = tokenCookie.match(/token=([^;]+)/)[1];
+    console.log('Token obtido com sucesso.');
 
     await tokenRef.set({ value: token, updatedAt: new Date() });
 
@@ -72,8 +54,5 @@ exports.loginAndExtractToken = async () => {
 
   } catch (error) {
     throw new Error(`Erro ao obter token: ${error.message}`);
-  } finally {
-    await browser.close();
   }
 };
-// loginAndExtractToken();
