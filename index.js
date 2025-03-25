@@ -44,7 +44,7 @@ exports.verifica_insercoes = onSchedule(
 
 exports.atualiza_analytics = onSchedule(
     {
-        schedule: "0 1 * * *", // Todos os dias às 01:00
+        schedule: "0 7 * * *", // Todos os dias às 07:00
         timeZone: "America/Sao_Paulo", // Timezone SP
         retryCount: 5, // Tentará rodar novamente até 3 vezes em caso de falha
         maxRetrySeconds: 180, // Tempo máximo de re-tentativas (3 minutos)
