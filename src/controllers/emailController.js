@@ -54,16 +54,21 @@ async function processEmailSend(emailId, mailClient, mailSeller, checkIns) {
         const password = validCheckins[0].senha;
 
         console.log(`[INFO] Senha utilizada para autenticação: ${password}`);
-        console.log(`[INFO] Gerando único PDF para todos os check-ins...`);
+        // console.log(`[INFO] Gerando único PDF para todos os check-ins...`);
 
         let pdfBuffer;
-        try {
-            pdfBuffer = await pdf.createPDFCheckin(validCheckins); // Agora gera UM PDF para todos os check-ins
-            console.log(`[SUCCESS] PDF único gerado com sucesso!`);
-        } catch (error) {
-            console.error(`[ERROR] Falha ao gerar PDF único. Enviando sem anexo.`, error.message);
-            pdfBuffer = null;
-        }
+        // if (validCheckins.length < 5) {
+        //     console.log(`[INFO] Gerando único PDF para todos os check-ins...`);
+        //     try {
+        //         pdfBuffer = await pdf.createPDFCheckin(validCheckins);
+        //         console.log(`[SUCCESS] PDF único gerado com sucesso!`);
+        //     } catch (error) {
+        //         console.error(`[ERROR] Falha ao gerar PDF único. Enviando sem anexo.`, error.message);
+        //         pdfBuffer = null;
+        //     }
+        // } else {
+        //     console.log(`[INFO] Mais de 10 check-ins. PDF não será gerado para evitar processamento desnecessário.`);
+        // }
 
         await emailService.sendMailCheckin(emailId, mailClient, mailSeller, password, validCheckins, pdfBuffer);
 
