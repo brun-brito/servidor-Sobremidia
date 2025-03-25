@@ -3,6 +3,7 @@ const { loginAndExtractToken } = require("../services/tokenService");
 const { db } = require("../config/firebase");
 const API_URL = "https://analytics.4yousee.com/api/concurrent_dash_data/308";
 const moment = require("moment-timezone");
+const https = require("https");
 
 exports.updateDailyAnalytics = async () => {
   const logRef = db.collection("analytics").doc("logs").collection("updates");
@@ -38,8 +39,10 @@ exports.updateDailyAnalytics = async () => {
       end_date: formattedDate,
     };
 
+    console.log("🔄 Atualizando dados diários...");
     const response = await axios.post(API_URL, payload, {
       headers: { Cookie: `token=${token}` },
+      httpsAgent: new https.Agent({keepAlive: true}),
     });
 
     const data = response.data;
