@@ -4,7 +4,7 @@ const { SECRET_TOKEN1, SECRET_TOKEN2, BASE_URL } = require("../config");
 const analyzeLogs = require("../utils/analyzeLogs");
 const { db }= require("../config/firebase");
 
-exports.generateReport = async(req, res) => {
+async function generateReport(req, res) {
     const { startDate, startTime, endDate, endTime, mediaId, playerId, clientes, user } = req.body;
 
     const requestBody = {
@@ -126,7 +126,7 @@ async function checkReportStatus(reportId) {
     throw new Error("Tempo limite excedido para geração do relatório.");
 }
 
-exports.getReportStatus = async(req, res) => {
+async function getReportStatus(req, res) {
     const { reportId } = req.params;
 
     try {
@@ -153,7 +153,7 @@ exports.getReportStatus = async(req, res) => {
     }
 }
 
-exports.getReportResult = async(req, res) => {
+async function getReportResult(req, res) {
     const { reportId } = req.params;
 
     try {
@@ -195,7 +195,7 @@ exports.getReportResult = async(req, res) => {
     }
 }
 
-exports.downloadAndProcessReport = async(reportUrl) => {
+async function downloadAndProcessReport(reportUrl) {
     console.log(`[INFO] Baixando e processando relatório de: ${reportUrl}`);
 
     const response = await axios.get(reportUrl, { responseType: "arraybuffer" });
@@ -227,6 +227,8 @@ exports.downloadAndProcessReport = async(reportUrl) => {
     return analyzeLogs(logs);
 }
 
-exports.organizeReport = async(url) => {
+async function organizeReport(url) {
     return await downloadAndProcessReport(url);
 }
+
+module.exports = { generateReport, getReportStatus, getReportResult, downloadAndProcessReport, organizeReport };
