@@ -1,4 +1,7 @@
 const  reportService = require("../services/reportService");
+const analyticsService = require("../services/analyticsService");
+const { generateScriptAnalytics } = require("../utils/analyticsChart");
+const { listarPaineisService } = require("../services/paineisService")
 const { db } = require("../config/firebase");
 const { BASE_URL, SECRET_TOKEN1, SECRET_TOKEN2 } = require("../config");
 const moment = require('moment');   
@@ -17,6 +20,15 @@ async function displayReport(req, res) {
         const reportData = reportApi.data();
         const reportUrl = reportData.url;
         const data = await reportService.downloadAndProcessReport(reportUrl);
+
+        const locations = Object.keys(data.playerDetails);
+        const analyticsData = await analyticsService.fetchAnalyticsData(
+            reportData.startDate,
+            reportData.endDate,
+            locations
+        );
+        const paineis = await listarPaineisService(locations);
+        const analytiscScript = generateScriptAnalytics(analyticsData, paineis);
 
         if (!data) {
             return res.status(404).send("Erro ao processar relatório.");
@@ -143,7 +155,7 @@ async function displayReport(req, res) {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Relatório ${reportId}</title>
                 <style>
-                    body { font-family: Arial, sans-serif;max-width: 900px;margin: 20px auto;padding: 20px;background-color: #f4f4f4;color: #333;border-radius: 10px; }
+                    body { font-family: Arial, sans-serif;max-width: 1200px;margin: 20px auto;padding: 20px;background-color: #f4f4f4;color: #333;border-radius: 10px; }
                     h1, h2 { color: #333; } .report-summary { background: white; display: inline-block;padding: 15px;border-radius: 5px;box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);max-width: 600px;text-align: left;}
                     ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
                     li { background: white; margin: 10px 0; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }
@@ -170,6 +182,93 @@ async function displayReport(req, res) {
                     .modal-content button {background-color:rgba(255, 0, 0, 0.72);color: white;border: none;padding: 10px 20px;border-radius: 5px;cursor: pointer;font-size: 14px;margin-top: 10px;}
                     .modal-content button:hover {background-color:rgb(179, 0, 0);}
                     @keyframes fadeIn {from {opacity: 0;transform: scale(0.9);}to {opacity: 1;transform: scale(1);}}
+                    .tabs {display: flex;border-bottom: 2px solid #ccc;margin-bottom: 20px;}
+                    .tab-button {padding: 10px 20px;cursor: pointer;background: none;border: none;border-bottom: 3px solid transparent;font-weight: bold; font-size:larger;}
+                    .tab-button.active {border-bottom: 3px solid #24d464;color: #24d464;}
+                    .tab-content {display: none;}   .tab-content.active {display: block;}
+                    :root {--audience-color: #35C759;--impact-color: #4887F3;--frequency-color: #8A5CF6;--dwell-time-color: #FFA500;--median-color: #cecece;--location-color: #DC3545;}
+                    .dashboard-container {font-family: Arial, sans-serif;border: 1px solid #ddd;border-radius: 10px;color: white;}
+                    #impact-result {margin-top: 15px;}
+                    h2 i {color: black;}
+                    section h2 {color: black;}#total {margin-bottom: 20px;padding: 20px;border-radius: 10px;background-color: #f9f9f9;}
+                    .section-title {margin-bottom: 15px;gap: 10px;background: #ffffff;color: black;border-radius: 8px;padding: 15px;display: flex;align-items: center;box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);width: fit-content;}
+                    .total-container.collapsed {max-height: 0;opacity: 0;padding: 0;margin: 0;}
+                    .total-container {display: grid;grid-template-columns: repeat(3, 1fr);gap: 15px;margin-top: 10px;padding: 20px;overflow: hidden;transition: max-height 0.5s ease-out, opacity 0.5s ease-out;max-height: 1000px;opacity: 1;border-radius: 10px;}
+                    .metric-card {background-color: #a1a1a178;border-radius: 8px;padding: 25px;display: flex;align-items: center;justify-content: space-between;box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);}
+                    .metric-card:nth-child(1) .icon {color: var(--audience-color);}
+                    .metric-card:nth-child(2) .icon {color: var(--impact-color);}
+                    .metric-card:nth-child(3) .icon {color: var(--frequency-color);}
+                    .metric-card:nth-child(4) .icon {color: var(--dwell-time-color);}
+                    .metric-card:nth-child(5) .icon {color: var(--median-color);}
+                    .metric-card:nth-child(6) .icon {color: var(--location-color);}
+                    .chart-data-table::-webkit-scrollbar {width: 8px;height: 10px;}
+                    .chart-data-table::-webkit-scrollbar-track {background: #ffffff;border-radius: 10px;}
+                    .chart-data-table::-webkit-scrollbar-thumb {background: #35C759;border-radius: 10px;}
+                    .chart-data-table::-webkit-scrollbar-thumb:hover {background: #2fa746;}
+                    .icon {font-size: 26px;color: black;}
+                    .info {text-align: right;}
+                    .info span {display: block;    font-size: 12px;color: #777;}
+                    .info h2 {    font-size: 24px;margin: 8px 0 0;font-weight: bold;/* color: #fff; */letter-spacing: 1px;}#address {padding: 20px;border-radius: 10px;background-color:#f9f9f9;}
+                    #address h2 {margin-bottom: 15px;gap: 10px;background: #ffffff;color: black;border-radius: 8px;padding: 15px;display: flex;align-items: center;box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);width: fit-content;}
+                    .address-container {overflow: hidden;transition: max-height 0.5s ease-out, opacity 0.5s ease-out;max-height: 1000px;opacity: 1;}
+                    .address-scroll-wrapper {max-height: 800px;overflow-x: auto;}
+                    .address-scroll-wrapper::-webkit-scrollbar {width: 8px;height: 8px;}.address-scroll-wrapper::-webkit-scrollbar-track {background: #ffffff;border-radius: 10px;}.address-scroll-wrapper::-webkit-scrollbar-thumb {background: #35C759;border-radius: 10px;}.address-scroll-wrapper::-webkit-scrollbar-thumb:hover {background: #2fa746;}
+                    .address-container.collapsed {max-height: 0;opacity: 0;padding: 0;margin: 0;}
+                    .address-table {width: 100%;border-collapse: collapse;background-color: #a1a1a178;border-radius: 8px;overflow: hidden;}
+                    .address-table thead {background-color: #f0f0f0;color: #777;cursor: pointer;}
+                    .address-table th,
+                    .address-table td {padding: 12px;text-align: center;color: black;border-bottom: 1px solid #ffffff;}
+                    .address-table th:nth-child(2) {color: var(--audience-color);}
+                    .address-table th:nth-child(3) {color: var(--impact-color);}
+                    .address-table th:nth-child(4) {color: var(--frequency-color);}
+                    .address-table th:nth-child(5) {color: var(--dwell-time-color);}
+                    .address-table th:nth-child(6) {color: var(--median-color);}
+                    .address-table tbody tr:hover {background-color: #f0f0f0;}
+                    .address-table th .sort-icon {margin-left: 5px;font-size: 12px;}
+                    .toggle-button {color: white;background: none;border: none;cursor: pointer;}
+                    @media (max-width: 768px) {
+                    .address-table {font-size: 12px;}}
+                    #avg {padding: 20px;border-radius: 10px;background-color:#f9f9f9;margin-top: 20px;}
+                    #avg h2 {margin-bottom: 15px;gap: 10px;background: #ffffff;border-radius: 8px;padding: 15px;display: flex;align-items: center;box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);width: fit-content;}
+                    .avg-container {padding: 10px;background-color: #ffffff;overflow: hidden;transition: max-height 0.5s ease-out, opacity 0.5s ease-out;opacity: 1;}
+                    .avg-container.collapsed {max-height: 0;opacity: 0;padding: 0;margin: 0;}
+                    #avg canvas {max-height: 350px;}
+                    #audience-impact {padding: 20px;border-radius: 10px;background-color:#f9f9f9;margin-top: 20px;}
+                    #audience-impact h2 {margin-bottom: 15px;gap: 10px;background: #ffffff;border-radius: 8px;padding: 15px;display: flex;align-items: center;box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);width: fit-content;}
+                    .audience-impact-container {padding: 10px;background-color: #ffffff;overflow: hidden;transition: max-height 0.5s ease-out, opacity 0.5s ease-out;opacity: 1;}
+                    .audience-impact-container.collapsed {max-height: 0;opacity: 0;padding: 0;margin: 0;}
+                    .audience-impact-wrapper {display: flex;align-items: flex-start;width: 100%;gap: 10px;}
+                    .chart-container {flex: 1.5;overflow-x: auto;height: 400px;}
+                    #audience-impact canvas {width: 100% !important;height: 350px !important;}
+                    .chart-scroll-container::-webkit-scrollbar {height: 8px;}.chart-scroll-container::-webkit-scrollbar-track {background: #ffffff;border-radius: 10px;}.chart-scroll-container::-webkit-scrollbar-thumb {background: #35C759; border-radius: 10px;}.chart-scroll-container::-webkit-scrollbar-thumb:hover {background: #2fa746;}
+                    .audience-table thead, .audience-table-weekly thead {cursor: pointer;}
+                    .audience-table th:nth-child(2), .audience-table-weekly th:nth-child(2) {color: var(--audience-color);}
+                    .audience-table th:nth-child(3), .audience-table-weekly th:nth-child(3) {color: var(--impact-color);}
+                    .audience-table th:nth-child(4), .audience-table-weekly th:nth-child(4) {color: var(--dwell-time-color);}
+                    .chart-data-table {background-color: #a1a1a178;padding: 10px;border-radius: 8px;max-height: 400px;overflow-y: auto;margin-left: 20px;flex: 1;font-size: 14px;}
+                    .chart-data-table table {width: 100%;border-collapse: collapse;color: white;}
+                    .chart-data-table th, .chart-data-table td {padding: 8px;text-align: center;border-bottom: 1px solid #ffffff;color: black;}
+                    .chart-data-table thead {background-color: #f0f0f0;color: #777;}
+                    .chart-data-table tbody {background-color: #9ca3af0a;}
+                    #recurrence {padding: 20px;border-radius: 10px;background-color:#f9f9f9;margin-top: 20px;}
+                    #recurrence h2 {margin-bottom: 15px;gap: 10px;background: #ffffff;border-radius: 8px;padding: 15px;display: flex;align-items: center;box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);width: fit-content;}
+                    .recurrence-container {padding: 25px;background-color: #ffffff;overflow: hidden;transition: max-height 0.5s ease-out, opacity 0.5s ease-out;opacity: 1;}
+                    .recurrence-container.collapsed {max-height: 0;opacity: 0;padding: 0;margin: 0;}
+                    .chart-recurrence-container {flex: 1.5;overflow-x: auto;height: 550px;border-radius: 10px;}
+                    .recurrence-table {border-collapse: collapse;background-color: #a1a1a178;border-radius: 8px;overflow: hidden;font-size: 18px;}
+                    .recurrence-table th, .recurrence-table td {padding: 8px;text-align: center;border-bottom: 1px solid #ffffff;color: black;}
+                    .recurrence-table thead {background-color: #f0f0f0;color: #777;cursor: pointer;}
+                    #cameras {padding: 20px;border-radius: 10px;background-color:#f9f9f9;margin-top: 20px;}
+                    #cameras h2 {margin-bottom: 15px;gap: 10px;background: #ffffff;border-radius: 8px;padding: 15px;display: flex;align-items: center;box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);width: fit-content;}
+                    .cameras-container {padding: 10px;background-color: #ffffff;overflow: hidden;transition: max-height 0.5s ease-out, opacity 0.5s ease-out;opacity: 1;}
+                    .cameras-container.collapsed {max-height: 0;opacity: 0;padding: 0;margin: 0;}
+                    .cameras-table {width: 100%;border-collapse: collapse;/* background-color: #a1a1a178; */border-radius: 8px;overflow: hidden;}
+                    .cameras-table thead {cursor: pointer;}
+                    .cameras-table th, .cameras-table td {padding: 8px;text-align: center;border-bottom: 1px solid #ffffff;}
+                    .pagination-controls {display: flex;justify-content: space-between;margin-top: 10px;color: black;}
+                    .chart-cameras-container {flex: 1.5;overflow-x: auto;height: 400px;white-space: nowrap;}
+                    .chart-body-cameras canvas {width: 100% !important;height: 380px !important;}  
+                    .audience-impact-container h3 {color: black;} .avg-container h3 {color: black;}
                 </style>
             </head>
             <body>
@@ -178,35 +277,54 @@ async function displayReport(req, res) {
                     alt="Logo Sobremidia" 
                     class="header-image">
                 </div>
-                <h1>Relatório de Inserções</h1>
-                <div class="report-summary">
-                    <p><strong>Intervalo de Datas:</strong> ${moment(reportData.startDate).format("DD/MM/YYYY")} (${reportData.startTime || '00:00'}) - ${moment(reportData.endDate).format("DD/MM/YYYY")} (${reportData.endTime || '23:59'})</p>
-                    <p><strong>Cliente(s):</strong> ${Array.isArray(reportData.clientes) ? reportData.clientes.join(", ") : reportData.clientes || "Todos"}</p>
-                    <p><strong>Total de Inserções:</strong> ${summary.totalExhibitions || 0}</p>
-                    <p><strong>Total de Mídias Inseridas:</strong> ${summary.totalMedia || 0}</p>
-                    <p><strong>Total de Painéis Utilizados:</strong> ${summary.totalPlayers || 0}</p>
+
+                <div class="tabs">
+                    <button
+                        class="tab-button active"
+                        onclick="showTab('tab-veiculacao', this)"
+                    >
+                        Veiculação
+                    </button>
+                    <button class="tab-button" onclick="showTab('tab-impacto', this)">
+                        Métricas
+                    </button>
                 </div>
 
-                <h2>Inserções por Mídia</h2>
-                <ul>${mediaHTML || "<p>Nenhuma mídia registrada.</p>"}</ul>
-                
-                <h2>Inserções por Painel</h2>
-                <ul>${panelHTML || "<p>Nenhum painel registrado.</p>"}</ul>
+                <div id="tab-veiculacao" class="tab-content active">
+                    <h1>Relatório de Veiculação</h1>
+                    <div class="report-summary">
+                        <p><strong>Intervalo de Datas:</strong> ${moment(reportData.startDate).format("DD/MM/YYYY")} (${reportData.startTime || '00:00'}) - ${moment(reportData.endDate).format("DD/MM/YYYY")} (${reportData.endTime || '23:59'})</p>
+                        <p><strong>Cliente(s):</strong> ${Array.isArray(reportData.clientes) ? reportData.clientes.join(", ") : reportData.clientes || "Todos"}</p>
+                        <p><strong>Total de Inserções:</strong> ${summary.totalExhibitions || 0}</p>
+                        <p><strong>Total de Mídias Inseridas:</strong> ${summary.totalMedia || 0}</p>
+                        <p><strong>Total de Painéis Utilizados:</strong> ${summary.totalPlayers || 0}</p>
+                    </div>
 
-                <div style="display: none;" id="totalAparicoesModal" class="modal">
-                    <div class="modal-content">
-                        <h2>Detalhes de Inserções</h2>
-                        <ul id="daily-aparicoes-list"></ul>
-                        <button onclick="document.getElementById('totalAparicoesModal').style.display='none'">Fechar</button>
+                    <h2>Inserções por Mídia</h2>
+                    <ul>${mediaHTML || "<p>Nenhuma mídia registrada.</p>"}</ul>
+                    
+                    <h2>Inserções por Painel</h2>
+                    <ul>${panelHTML || "<p>Nenhum painel registrado.</p>"}</ul>
+
+                    <div style="display: none;" id="totalAparicoesModal" class="modal">
+                        <div class="modal-content">
+                            <h2>Detalhes de Inserções</h2>
+                            <ul id="daily-aparicoes-list"></ul>
+                            <button onclick="document.getElementById('totalAparicoesModal').style.display='none'">Fechar</button>
+                        </div>
+                    </div>
+
+                    <div style="display: none;" id="dailyAparicoesModal" class="modal">
+                        <div class="modal-content">
+                            <h2>Horários das Inserções</h2>
+                            <ul id="detailed-aparicoes-list"></ul>
+                            <button onclick="document.getElementById('dailyAparicoesModal').style.display='none'">Fechar</button>
+                        </div>
                     </div>
                 </div>
 
-                <div style="display: none;" id="dailyAparicoesModal" class="modal">
-                    <div class="modal-content">
-                        <h2>Horários das Inserções</h2>
-                        <ul id="detailed-aparicoes-list"></ul>
-                        <button onclick="document.getElementById('dailyAparicoesModal').style.display='none'">Fechar</button>
-                    </div>
+                <div id="tab-impacto" class="tab-content">
+                    ${generateImpactHTML()}
                 </div>
 
                 <div class="footer-container">
@@ -228,6 +346,14 @@ async function displayReport(req, res) {
                             button.classList.remove("open");
                             button.innerHTML = 'Ver detalhes <i class="fas fa-chevron-right"></i>';
                         }
+                    }
+
+                    function showTab(tabId, btn) {
+                        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+                        document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+
+                        document.getElementById(tabId).classList.add('active');
+                        btn.classList.add('active');
                     }
 
                     document.addEventListener("DOMContentLoaded", function () {
@@ -304,7 +430,15 @@ async function displayReport(req, res) {
                         });
                     });
                 </script>
+
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.2.0/chartjs-plugin-zoom.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
                 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
+           
+                <script>
+                    ${analytiscScript}
+                </script>
             </body>
             </html>
         `;
@@ -315,6 +449,538 @@ async function displayReport(req, res) {
         console.error("[ERROR] Erro ao exibir relatório:", error);
         res.status(500).send("Erro ao exibir relatório.");
     }
+}
+
+function generateImpactHTML() {
+    return `
+        <h1 style="margin-top: 10px;">Relatório de Métricas</h3>
+        <div
+            id="impact-no-data"
+            style="
+                display: none;
+                padding: 2rem;
+                font-size: 1.5rem;
+                color: black;
+            "
+        >
+            Sem dados
+        </div>
+        <div id="impact-result">
+            <div class="dashboard-container">
+                <!-- Section: Total -->
+                <section class="section" id="total">
+                    <h2 class="section-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Dados Totais
+                        <button
+                            class="toggle-button"
+                            onclick="toggleSection('total')"
+                        >
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </h2>
+                    <div
+                        class="total-container"
+                        id="total-container"
+                    >
+                        <div class="metric-card">
+                            <i class="fas fa-users icon"></i>
+                            <div class="info">
+                                <span>Audiência Total</span>
+                                <h2 id="totalAudience"></h2>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <i
+                                class="fas fa-chart-bar icon"
+                            ></i>
+                            <div class="info">
+                                <span>Impacto</span>
+                                <h2 id="totalImpact"></h2>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <i class="fas fa-sync-alt icon"></i>
+                            <div class="info">
+                                <span>Frequência Média</span>
+                                <h2 id="frequency"></h2>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <i class="fas fa-clock icon"></i>
+                            <div class="info">
+                                <span>Dwell Time</span>
+                                <h2 id="dwellTime"></h2>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <i
+                                class="fas fa-calendar-alt icon"
+                            ></i>
+                            <div class="info">
+                                <span
+                                    >Mediana de Dias
+                                    Monitorados</span
+                                >
+                                <h2 id="medianDays"></h2>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <i
+                                class="fas fa-map-marker-alt icon"
+                            ></i>
+                            <div class="info">
+                                <span>Localizações</span>
+                                <h2 id="locations"></h2>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section: Endereços -->
+                <section class="section" id="address">
+                    <h2>
+                        <i class="fas fa-map-marker-alt"></i>
+                        Endereços
+                        <button
+                            class="toggle-button"
+                            onclick="toggleSection('address')"
+                        >
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </h2>
+                    <div class="address-container">
+                        <div class="address-scroll-wrapper">
+                            <table
+                                id="addressesTable"
+                                class="address-table"
+                            >
+                                <thead>
+                                    <tr>
+                                        <th data-column="local">
+                                            Local
+                                            <span
+                                                class="sort-icon"
+                                            ></span>
+                                        </th>
+                                        <th
+                                            data-column="audiencia"
+                                        >
+                                            Audiência
+                                            <span
+                                                class="sort-icon"
+                                            ></span>
+                                        </th>
+                                        <th
+                                            data-column="impacto"
+                                        >
+                                            Impactos
+                                            <span
+                                                class="sort-icon"
+                                            ></span>
+                                        </th>
+                                        <th
+                                            data-column="frequencia"
+                                        >
+                                            Frequência média
+                                            <span
+                                                class="sort-icon"
+                                            ></span>
+                                        </th>
+                                        <th
+                                            data-column="dwellTime"
+                                        >
+                                            Dwell Time
+                                            <span
+                                                class="sort-icon"
+                                            ></span>
+                                        </th>
+                                        <th
+                                            data-column="medianDays"
+                                        >
+                                            Mediana de dias
+                                            monitorados
+                                            <span
+                                                class="sort-icon"
+                                            ></span>
+                                        </th>
+                                        <th
+                                            data-column="minDate"
+                                        >
+                                            Data mínima
+                                            <span
+                                                class="sort-icon"
+                                            ></span>
+                                        </th>
+                                        <th
+                                            data-column="maxDate"
+                                        >
+                                            Data máxima
+                                            <span
+                                                class="sort-icon"
+                                            ></span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="addressesList">
+                                    <!-- Endereços serão adicionados dinamicamente pelo JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section: Audience x Impact -->
+                <section class="section" id="audience-impact">
+                    <h2>
+                        <i class="fas fa-chart-line"></i> Total
+                        por dia e semana
+                        <button
+                            class="toggle-button"
+                            onclick="toggleSection('audience-impact')"
+                        >
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </h2>
+                    <div class="audience-impact-container">
+                        <h3>
+                            Análise Diária Audiência x Impactos
+                        </h3>
+                        <div class="audience-impact-wrapper">
+                            <div
+                                class="chart-container chart-scroll-container"
+                            >
+                                <div class="chart-body">
+                                    <canvas
+                                        id="dailyChart"
+                                    ></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-data-table">
+                                <table
+                                    id="audienceTable"
+                                    class="audience-table"
+                                >
+                                    <thead>
+                                        <tr>
+                                            <th
+                                                data-column="date"
+                                            >
+                                                Data
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                            <th
+                                                data-column="audience"
+                                            >
+                                                Audiência
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                            <th
+                                                data-column="impact"
+                                            >
+                                                Impacto
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                            <th
+                                                data-column="dwell_time"
+                                            >
+                                                Dwell Time
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="dailyDataTable"
+                                    ></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <h3>
+                            Análise Semanal Audiência x Impactos
+                        </h3>
+                        <div class="audience-impact-wrapper">
+                            <div
+                                class="chart-container chart-scroll-container"
+                            >
+                                <div class="chart-body">
+                                    <canvas
+                                        id="weeklyChart"
+                                    ></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-data-table">
+                                <table
+                                    id="audienceTable-weekly"
+                                    class="audience-table-weekly"
+                                >
+                                    <thead>
+                                        <tr>
+                                            <th
+                                                data-column="day"
+                                            >
+                                                Dia da Semana
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                            <th
+                                                data-column="audience"
+                                            >
+                                                Audiência
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                            <th
+                                                data-column="impact"
+                                            >
+                                                Impacto
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                            <th
+                                                data-column="dwell_time"
+                                            >
+                                                Dwell Time
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="weeklyDataTable"
+                                    ></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section: Média por Hora e Turno -->
+                <section class="section" id="avg">
+                    <h2>
+                        <i class="fas fa-clock"></i> Média por
+                        Hora e Turno
+                        <button
+                            class="toggle-button"
+                            onclick="toggleSection('avg')"
+                        >
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </h2>
+                    <div class="avg-container">
+                        <h3>Média de Impactos por Hora</h3>
+                        <canvas id="hourlyChart"></canvas>
+
+                        <h3>Média de Impactos por Turno</h3>
+                        <canvas id="shiftChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Section: Recorrência -->
+                <section class="section" id="recurrence">
+                    <h2>
+                        <i class="fas fa-id-badge"></i>
+                        Recorrência
+                        <button
+                            class="toggle-button"
+                            onclick="toggleSection('recurrence')"
+                        >
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </h2>
+                    <div class="recurrence-container">
+                        <div class="audience-impact-wrapper">
+                            <div
+                                class="chart-recurrence-container"
+                            >
+                                <canvas
+                                    id="recurrenceChart"
+                                ></canvas>
+                            </div>
+                            <div
+                                class="chart-recurrence-data-table"
+                            >
+                                <table
+                                    id="recurrenceTable"
+                                    class="recurrence-table"
+                                >
+                                    <thead>
+                                        <tr>
+                                            <th
+                                                data-column="recurrence"
+                                            >
+                                                Recorrência
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                            <th
+                                                data-column="value"
+                                            >
+                                                Valor
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                            <th
+                                                data-column="percentage"
+                                            >
+                                                Porcentagem
+                                                <span
+                                                    class="sort-icon"
+                                                ></span>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="recurrenceDataTable"
+                                    ></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section: Câmeras -->
+                <section class="section" id="cameras">
+                    <h2>
+                        <i class="fas fa-video"></i> Câmeras
+                        <button
+                            class="toggle-button"
+                            onclick="toggleSection('cameras')"
+                        >
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </h2>
+                    <div
+                        class="cameras-container"
+                        id="cameras-container"
+                    >
+                        <div
+                            id="cameras-no-data"
+                            style="
+                                display: none;
+                                padding: 1rem 0;
+                                text-align: center;
+                            "
+                        >
+                            <p
+                                style="
+                                    font-size: 1.5rem;
+                                    color: black;
+                                "
+                            >
+                                Sem dados
+                            </p>
+                        </div>
+
+                        <div id="cameras-content">
+                            <h3>Média de Impactos por Data</h3>
+                            <div
+                                class="chart-cameras-container chart-scroll-container"
+                            >
+                                <div class="chart-body-cameras">
+                                    <canvas
+                                        id="camerasChart"
+                                    ></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-data-table">
+                                <table
+                                    id="camerasTable"
+                                    class="cameras-table"
+                                >
+                                    <thead>
+                                        <tr>
+                                            <th
+                                                data-column="name"
+                                            >
+                                                Localização
+                                            </th>
+                                            <th
+                                                data-column="cars"
+                                            >
+                                                Carros
+                                            </th>
+                                            <th
+                                                data-column="buses"
+                                            >
+                                                Ônibus
+                                            </th>
+                                            <th
+                                                data-column="trucks"
+                                            >
+                                                Caminhões
+                                            </th>
+                                            <th
+                                                data-column="vans"
+                                            >
+                                                Vans
+                                            </th>
+                                            <th
+                                                data-column="motorcycles"
+                                            >
+                                                Motos
+                                            </th>
+                                            <th
+                                                data-column="people"
+                                            >
+                                                Pessoas
+                                            </th>
+                                            <th
+                                                data-column="impact_total"
+                                            >
+                                                Impacto
+                                            </th>
+                                            <th
+                                                data-column="id"
+                                            >
+                                                ID
+                                            </th>
+                                            <th
+                                                data-column="date"
+                                            >
+                                                Data(s)
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="camerasDataTable"
+                                    ></tbody>
+                                </table>
+                                <div
+                                    class="pagination-controls"
+                                >
+                                    <button id="prevPage">
+                                        &#9664;
+                                    </button>
+                                    <span id="pageInfo"
+                                        >Página 1 de X</span
+                                    >
+                                    <button id="nextPage">
+                                        &#9654;
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="modal-detalhes"></div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    `
 }
 
 async function fetchMediaNames(mediaIds) {
