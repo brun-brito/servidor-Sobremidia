@@ -3,6 +3,7 @@ const { FieldValue } = require("firebase-admin/firestore");
 const fs = require('fs');
 const path = require('path');
 const Busboy = require("busboy");
+const ffmpeg = require('fluent-ffmpeg');
   
 exports.createCheckinService = async (data) => {
     // Valida se o array de midias foi enviado e se cada mídia contém pelo menos um arquivo em cada categoria
@@ -137,9 +138,11 @@ exports.uploadChunk = (req) => {
         fs.writeFileSync(chunkFilePath, chunkBuffer);
 
         if (chunkIndexNum === totalChunksNum - 1) {
-          const finalFilePath = path.join(chunksDir, "final_" + originalName);
-          const writeStream = fs.createWriteStream(finalFilePath);
+          const rawFilePath = path.join(chunksDir, "raw_" + originalName);
+          const finalFilePath = path.join(chunksDir, "muted_" + originalName);
 
+          // Junta os chunks no arquivo bruto
+          const writeStream = fs.createWriteStream(rawFilePath);
           for (let i = 0; i < totalChunksNum; i++) {
             const chunkPath = path.join(chunksDir, i.toString());
             if (!fs.existsSync(chunkPath)) {
@@ -153,6 +156,16 @@ exports.uploadChunk = (req) => {
           await new Promise((resolve, reject) => {
             writeStream.on("finish", resolve);
             writeStream.on("error", reject);
+          });
+
+          // ⚠️ Remove o áudio com ffmpeg
+          await new Promise((resolve, reject) => {
+            ffmpeg(rawFilePath)
+              .noAudio()
+              .outputOptions('-c:v copy') // mantém o vídeo original
+              .save(finalFilePath)
+              .on('end', resolve)
+              .on('error', reject);
           });
 
           const fileName = `checkin/${checkinId}/${Date.now()}_${originalName}`;
