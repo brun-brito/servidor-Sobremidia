@@ -516,7 +516,8 @@ function generateImpactHTML() {
                         <div class="metric-card">
                             <i
                                 class="fas fa-calendar-alt icon"
-                            ></i>
+                                style="color: #ffffff"
+                                ></i>
                             <div class="info">
                                 <span
                                     >Mediana de Dias
