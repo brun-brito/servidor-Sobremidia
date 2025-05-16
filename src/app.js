@@ -10,6 +10,7 @@ const tokenRoute = require("./routes/token");
 const analyticsRoute = require("./routes/analytics");
 const paineisRoute = require("./routes/paineis");
 const verificaInsercoesRoute = require("./routes/verificaInsercoes");
+const xlsRoute = require("./routes/xls");
 const PORT = process.env.PORT || 3000;
 const app = express();
 const session = require("express-session");
@@ -46,5 +47,6 @@ app.use("/token", tokenRoute);
 app.use("/analytics", analyticsRoute);
 app.use("/paineis", paineisRoute);
 app.use("/verifica-insercoes", verificaInsercoesRoute);
+app.use("/xls", xlsRoute);
 
 module.exports = app;
