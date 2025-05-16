@@ -1,4 +1,4 @@
-const { createPDFRelatorio, createPDFCheckin } = require("../services/pdfService");
+const { createPDFRelatorio, createPDFCheckin, createPDFMidiasAtivas } = require("../services/pdfService");
 const { downloadAndProcessReport } = require("../services/reportService")
 const { db }= require("../config/firebase");
 
@@ -61,4 +61,21 @@ const generatePDFCheckin = async (req, res) => {
     }
 };
 
-module.exports = { generatePDFRelatorio, generatePDFCheckin };
+
+const generatePDFMidiasAtivas = async (req, res) => {
+  try {
+    const pdfBuffer = await createPDFMidiasAtivas(req.body);
+    res.setHeader("Content-Disposition", "attachment; filename=midias_ativas.pdf");
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("Erro ao gerar PDF de mídias ativas:", error);
+    res.status(500).send("Erro ao gerar PDF.");
+  }
+};
+
+module.exports = {
+  generatePDFRelatorio,
+  generatePDFCheckin,
+  generatePDFMidiasAtivas,
+};

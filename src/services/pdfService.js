@@ -430,4 +430,57 @@ const createPDFCheckin = async (checkIns) => {
     return Buffer.from(doc.output("arraybuffer"));
 };
 
-module.exports = { createPDFRelatorio, createPDFCheckin };
+
+const createPDFMidiasAtivas = async (midias) => {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  const headerBase64 = await loadImageAsBase64(path.join(__dirname, "../assets/fotos/fotoHeader.png"));
+  const footerBase64 = await loadImageAsBase64(path.join(__dirname, "../assets/fotos/fotoFooter.png"));
+  let yOffset = contentStartY + 10;
+  const reportDate = moment().format("DD/MM/YYYY, HH:mm:ss");
+
+  if (headerBase64 && footerBase64) {
+    addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+  }
+
+  doc.setFontSize(16);
+  doc.text("Relatório de Mídias Ativas", 10, yOffset);
+  yOffset += 7;
+  doc.setFontSize(10);
+  doc.text(`Gerado em: ${reportDate}`, 10, yOffset);
+  yOffset += 7;
+
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.5);
+  doc.line(10, yOffset, pageWidth - 10, yOffset);
+  yOffset += 7;
+
+  for (const item of midias) {
+    if (yOffset > contentEndY - 20) {
+      doc.addPage();
+      addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+      yOffset = contentStartY + 10;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`Mídia: ${item.midia}`, 10, yOffset);
+    doc.setFont("helvetica", "normal");
+    yOffset += 5;
+    doc.text(`Painel: ${item.painel}`, 10, yOffset);
+    yOffset += 5;
+    doc.text(`Cliente: ${item.cliente}`, 10, yOffset);
+    yOffset += 5;
+    doc.text(`Início: ${item.inicio} | Fim: ${item.fim}`, 10, yOffset);
+    yOffset += 5;
+    doc.text(`Slots: ${item.slots} | Ocupação: ${item.ocupacao}`, 10, yOffset);
+    yOffset += 10;
+  }
+
+  return Buffer.from(doc.output("arraybuffer"));
+};
+
+module.exports = {
+  createPDFRelatorio,
+  createPDFCheckin,
+  createPDFMidiasAtivas,
+};
