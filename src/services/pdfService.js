@@ -1,3 +1,4 @@
+const sharp = require("sharp");
 const { jsPDF } = require("jspdf");
 const fs = require("fs");
 const path = require("path");
@@ -13,12 +14,25 @@ const contentEndY = pageHeight - (footerHeight - 100);
 const BASE_THUMBNAIL_URL = "https://s3.amazonaws.com/4yousee-files/sobremidia/common/videos/thumbnails/i_";
 
 const loadImageAsBase64 = async (filePath) => {
+    const isHeaderOrFooter = filePath.includes("fotoHeader.png") || filePath.includes("fotoFooter.png");
+
     if (filePath.startsWith("http")) {
-        return await fetchImageAsBase64(filePath); // Nova função para URLs remotas
+        return await fetchImageAsBase64(filePath); // continua usando sharp para imagens externas
     } else {
         try {
             const imageBuffer = fs.readFileSync(filePath);
-            return `data:image/png;base64,${imageBuffer.toString("base64")}`;
+
+            if (isHeaderOrFooter) {
+                return `data:image/png;base64,${imageBuffer.toString("base64")}`;
+            }
+
+            const resizedBuffer = await sharp(imageBuffer)
+                .rotate()
+                .resize({ width: 800 })
+                .jpeg({ quality: 60 })
+                .toBuffer();
+
+            return `data:image/jpeg;base64,${resizedBuffer.toString("base64")}`;
         } catch (error) {
             console.error("Erro ao carregar imagem local:", error);
             return null;
@@ -29,7 +43,12 @@ const loadImageAsBase64 = async (filePath) => {
 const fetchImageAsBase64 = async (url) => {
     try {
         const response = await axios.get(url, { responseType: "arraybuffer" });
-        return `data:image/png;base64,${Buffer.from(response.data, "binary").toString("base64")}`;
+        const resizedBuffer = await sharp(response.data)
+            .rotate()
+            .resize({ width: 800 }) // Reduz a largura mantendo proporção
+            .jpeg({ quality: 60 })  // Comprime a imagem
+            .toBuffer();
+        return `data:image/jpeg;base64,${resizedBuffer.toString("base64")}`;
     } catch (error) {
         console.error("Erro ao carregar imagem remota:", error);
         return null;
