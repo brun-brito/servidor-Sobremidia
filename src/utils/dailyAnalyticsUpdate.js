@@ -1,7 +1,7 @@
 const axios = require("axios");
 const { loginAndExtractToken } = require("../services/tokenService");
 const { db } = require("../config/firebase");
-const API_URL = "https://analytics.4yousee.com/api/concurrent_dash_data/308";
+const API_URL = "https://analytics.4yousee.com/django/legacy/api/concurrent_dash_data/308/";
 const moment = require("moment-timezone");
 const https = require("https");
 
@@ -41,7 +41,7 @@ exports.updateDailyAnalytics = async () => {
 
     console.log("🔄 Atualizando dados diários...");
     const response = await axios.post(API_URL, payload, {
-      headers: { Cookie: `token=${token}` },
+      headers: { Authorization: `Bearer ${token}` },
       httpsAgent: new https.Agent({keepAlive: true}),
     });
 

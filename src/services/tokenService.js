@@ -1,6 +1,6 @@
 const USER_MAIL = process.env.ANALYTICS_USER_MAIL;
 const PASSWORD = process.env.ANALYTICS_PASSWORD;
-const API_URL = 'https://analytics.4yousee.com/api';
+const API_URL = 'https://analytics.4yousee.com/django';
 const axios = require('axios');
 const { db } = require("../config/firebase");
 
@@ -12,9 +12,9 @@ exports.loginAndExtractToken = async () => {
   if (doc.exists && doc.data()?.value) {
     const savedToken = doc.data().value;
     try {
-      const testResponse = await axios.get(`${API_URL}/get_status_sensor`, {
+      const testResponse = await axios.get(`${API_URL}/devices`, {
         headers: {
-          Cookie: `token=${savedToken}`
+          Authorization: `Bearer ${savedToken}`
         },
         timeout: 5000
       });
@@ -30,29 +30,26 @@ exports.loginAndExtractToken = async () => {
   
   try{
     // faz o login via post e pega o token
-    const response = await axios.post(`${API_URL}/login`, {
+    const response = await axios.post(`${API_URL}/token/`, {
       username: USER_MAIL,
       password: PASSWORD
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
     });
 
-    const cookies = response.headers['set-cookie'];
-    if (!cookies || cookies.length === 0) {
-      throw new Error('Cookies não encontrados na resposta.');
+    const accessToken = response.data.access;
+    if (!accessToken) {
+      throw new Error('Token de acesso não encontrado na resposta.');
     }
 
-    const tokenCookie = cookies.find(cookie => cookie.includes('token='));
-    if (!tokenCookie) {
-      throw new Error('Cookie "token" não encontrado.');
-    }
+    await tokenRef.set({ value: accessToken, updatedAt: new Date() });
+    console.log('Token de acesso obtido com sucesso.');
 
-    const token = tokenCookie.match(/token=([^;]+)/)[1];
-    console.log('Token obtido com sucesso.');
-
-    await tokenRef.set({ value: token, updatedAt: new Date() });
-
-    return token;
-
+    return accessToken;
   } catch (error) {
-    throw new Error(`Erro ao obter token: ${error.message}`);
+    throw new Error(`Erro ao obter token JWT: ${error.message}`);
   }
 };

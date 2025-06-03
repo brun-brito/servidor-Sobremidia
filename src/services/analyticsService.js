@@ -1,7 +1,7 @@
 const { loginAndExtractToken } = require('../services/tokenService');
 const  reportService = require("../services/reportService");
 const axios = require('axios');
-const API_URL = 'https://analytics.4yousee.com/api/concurrent_dash_data/308';
+const API_URL = 'https://analytics.4yousee.com/django/legacy/api/concurrent_dash_data/308/';
 const { db } = require("../config/firebase");
 const https = require("https");
 
@@ -32,7 +32,7 @@ exports.fetchAnalyticsData = async (startDate, endDate, input) => {
   try {
     const token = await loginAndExtractToken();
     const response = await axios.post(API_URL, payload, {
-      headers: { Cookie: `token=${token}` },
+      headers: { Authorization: `Bearer ${token}` },
       httpsAgent: new https.Agent({keepAlive: true}),
     });
 
