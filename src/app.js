@@ -11,6 +11,9 @@ const analyticsRoute = require("./routes/analytics");
 const paineisRoute = require("./routes/paineis");
 const verificaInsercoesRoute = require("./routes/verificaInsercoes");
 const xlsRoute = require("./routes/xls");
+const clientesRoute = require("./routes/clientes");
+const agenciasRoute = require("./routes/agencias");
+const propostaRoute = require("./routes/proposta");
 const PORT = process.env.PORT || 3000;
 const app = express();
 const session = require("express-session");
@@ -48,5 +51,8 @@ app.use("/analytics", analyticsRoute);
 app.use("/paineis", paineisRoute);
 app.use("/verifica-insercoes", verificaInsercoesRoute);
 app.use("/xls", xlsRoute);
+app.use("/clientes", clientesRoute);
+app.use("/agencias", agenciasRoute);
+app.use("/proposta", propostaRoute);
 
 module.exports = app;
