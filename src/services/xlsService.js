@@ -8,22 +8,19 @@ const createXLSMidias = async (dados) => {
     { header: "Painel", key: "painel", width: 25 },
     { header: "Cliente", key: "cliente", width: 20 },
     { header: "Mídia", key: "midia", width: 30 },
+    { header: "Categoria", key: "categoria", width: 20 },
     { header: "Início", key: "inicio", width: 15 },
-    { header: "Fim", key: "fim", width: 15 },
-    { header: "Slots Ativos", key: "slots", width: 15 },
-    { header: "Ocupação", key: "ocupacao", width: 12 },
+    { header: "Fim", key: "fim", width: 15 }
   ];
 
   dados.forEach((item, idx) => {
     sheet.addRow({
-      index: idx + 1,
       painel: item.painel,
       cliente: item.cliente,
       midia: item.midia,
+      categoria: item.categoria,
       inicio: item.inicio,
-      fim: item.fim,
-      slots: item.slots,
-      ocupacao: item.ocupacao,
+      fim: item.fim
     });
   });
 

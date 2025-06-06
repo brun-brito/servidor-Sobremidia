@@ -449,7 +449,6 @@ const createPDFCheckin = async (checkIns) => {
     return Buffer.from(doc.output("arraybuffer"));
 };
 
-
 const createPDFMidiasAtivas = async (midias) => {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
@@ -489,9 +488,9 @@ const createPDFMidiasAtivas = async (midias) => {
     yOffset += 5;
     doc.text(`Cliente: ${item.cliente}`, 10, yOffset);
     yOffset += 5;
-    doc.text(`Início: ${item.inicio} | Fim: ${item.fim}`, 10, yOffset);
+    doc.text(`Categoria: ${item.categoria || 'N/A'}`, 10, yOffset);
     yOffset += 5;
-    doc.text(`Slots: ${item.slots} | Ocupação: ${item.ocupacao}`, 10, yOffset);
+    doc.text(`Início: ${item.inicio} | Fim: ${item.fim}`, 10, yOffset);
     yOffset += 10;
   }
 
