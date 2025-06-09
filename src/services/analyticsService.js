@@ -50,9 +50,7 @@ async function resolveLocations(locations) {
 
   try {
     const snapshot = await db
-      .collection("analytics")
-      .doc("paineis")
-      .collection("lista")
+      .collection("paineis")
       .get();
 
     const paineis = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

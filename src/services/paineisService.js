@@ -1,6 +1,6 @@
 const { db } = require("../config/firebase");
 
-const COLLECTION_PATH = "analytics/paineis/lista";
+const COLLECTION_PATH = "paineis";
 
 exports.listarPaineisService = async () => {
   const snapshot = await db.collection(COLLECTION_PATH).get();
