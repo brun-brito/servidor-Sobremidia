@@ -22,8 +22,14 @@ exports.obterPainelPorIdService = async (id) => {
 
 exports.criarPainelService = async (dados) => {
     const idManagerStr = String(dados.idManager);
+    const { formato, ...outrosDados } = dados;
   
-    await db.collection(COLLECTION_PATH).doc(idManagerStr).set(dados);
+    await db.collection(COLLECTION_PATH).doc(idManagerStr).set({
+        ...outrosDados,
+        formato: formato || "",
+        criado_em: new Date(),
+        atualizado_em: new Date()
+    });
     
     return { message: "Painel criado com sucesso!", id: idManagerStr };
   };
@@ -38,7 +44,12 @@ exports.atualizarPainelService = async (id, dados) => {
     throw error;
   }
 
-  await ref.update(dados);
+  const { formato, ...outrosDados } = dados;
+  await ref.update({
+    ...outrosDados,
+    formato: formato || "",
+    atualizado_em: new Date()
+  });
 };
 
 exports.excluirPainelService = async (id) => {
