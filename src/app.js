@@ -53,6 +53,6 @@ app.use("/verifica-insercoes", verificaInsercoesRoute);
 app.use("/xls", xlsRoute);
 app.use("/clientes", clientesRoute);
 app.use("/agencias", agenciasRoute);
-app.use("/proposta", propostaRoute);
+app.use("/propostas", propostaRoute);
 
 module.exports = app;
