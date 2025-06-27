@@ -21,18 +21,34 @@ exports.obterPainelPorIdService = async (id) => {
 };
 
 exports.criarPainelService = async (dados) => {
-    const idManagerStr = String(dados.idManager);
-    const { formato, ...outrosDados } = dados;
-  
-    await db.collection(COLLECTION_PATH).doc(idManagerStr).set({
+    // Extrai o valor antes do primeiro hífen do campo painel ou nome
+    const nomePainel = dados.painel || dados.nome || "";
+    const match = nomePainel.match(/^([^-\s]+)/);
+    const painelId = match ? match[1].trim() : String(dados.idManager);
+
+    // Verifica se já existe um painel com esse id
+    const ref = db.collection(COLLECTION_PATH).doc(painelId);
+    const doc = await ref.get();
+    if (doc.exists) {
+        const error = new Error(`Já existe um painel com o id '${painelId}'.`);
+        error.statusCode = 409;
+        throw error;
+    }
+
+    const { formato, latitude, longitude, cidade, ...outrosDados } = dados;
+
+    await ref.set({
         ...outrosDados,
         formato: formato || "",
+        latitude: latitude || "",
+        longitude: longitude || "",
+        cidade: cidade || "",
         criado_em: new Date(),
         atualizado_em: new Date()
     });
-    
-    return { message: "Painel criado com sucesso!", id: idManagerStr };
-  };
+
+    return { message: "Painel criado com sucesso!", id: painelId };
+};
 
 exports.atualizarPainelService = async (id, dados) => {
   const ref = db.collection(COLLECTION_PATH).doc(id);
@@ -44,10 +60,13 @@ exports.atualizarPainelService = async (id, dados) => {
     throw error;
   }
 
-  const { formato, ...outrosDados } = dados;
+  const { formato, latitude, longitude, cidade, ...outrosDados } = dados;
   await ref.update({
     ...outrosDados,
     formato: formato || "",
+    latitude: latitude || "",
+    longitude: longitude || "",
+    cidade: cidade || "",
     atualizado_em: new Date()
   });
 };
