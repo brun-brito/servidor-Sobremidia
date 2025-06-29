@@ -22,7 +22,7 @@ exports.obterPainelPorIdService = async (id) => {
 
 exports.criarPainelService = async (dados) => {
     // Extrai o valor antes do primeiro hífen do campo painel ou nome
-    const nomePainel = dados.painel || dados.nome || "";
+    const nomePainel = dados.nameManager || dados.nome || "";
     const match = nomePainel.match(/^([^-\s]+)/);
     const painelId = match ? match[1].trim() : String(dados.idManager);
 
@@ -35,7 +35,7 @@ exports.criarPainelService = async (dados) => {
         throw error;
     }
 
-    const { formato, latitude, longitude, cidade, ...outrosDados } = dados;
+    const { formato, latitude, longitude, cidade, impactos_mes, audiencia_mes, total_veiculos_mes, cpm_mes, ...outrosDados } = dados;
 
     await ref.set({
         ...outrosDados,
@@ -43,6 +43,10 @@ exports.criarPainelService = async (dados) => {
         latitude: latitude || "",
         longitude: longitude || "",
         cidade: cidade || "",
+        impactos_mes: impactos_mes || "",
+        audiencia_mes: audiencia_mes || "",
+        total_veiculos_mes: total_veiculos_mes || "",
+        cpm_mes: cpm_mes || "",
         criado_em: new Date(),
         atualizado_em: new Date()
     });
@@ -60,13 +64,17 @@ exports.atualizarPainelService = async (id, dados) => {
     throw error;
   }
 
-  const { formato, latitude, longitude, cidade, ...outrosDados } = dados;
+  const { formato, latitude, longitude, cidade, impactos_mes, audiencia_mes, total_veiculos_mes, cpm_mes, ...outrosDados } = dados;
   await ref.update({
     ...outrosDados,
     formato: formato || "",
     latitude: latitude || "",
     longitude: longitude || "",
     cidade: cidade || "",
+    impactos_mes: impactos_mes || "",
+    audiencia_mes: audiencia_mes || "",
+    total_veiculos_mes: total_veiculos_mes || "",
+    cpm_mes: cpm_mes || "",
     atualizado_em: new Date()
   });
 };
