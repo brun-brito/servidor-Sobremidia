@@ -3,9 +3,9 @@ const { db } = require("../config/firebase");
 const pdf = require('../services/pdfService');
 
 exports.handleSendMailCheckin = async (req, res) => {
-    const { mailClient, mailSeller, checkIn } = req.body;
+    const { nameClient, mailClient, mailSeller, checkIn } = req.body;
     
-    if (!mailClient || !checkIn || !mailSeller) {
+    if (!nameClient || !mailClient || !checkIn || !mailSeller) {
         return res.status(400).json({ success: false, message: "Parâmetros inválidos." });
     }
 
@@ -13,6 +13,7 @@ exports.handleSendMailCheckin = async (req, res) => {
 
     try {
         const emailRef = await db.collection("emails").add({
+            nameClient,
             mailClient,
             mailSeller,
             checkInIds: checkInsArray.map(c => c.id),
@@ -25,7 +26,7 @@ exports.handleSendMailCheckin = async (req, res) => {
 
         res.status(200).json({ success: true, emailId });
 
-        processEmailSend(emailId, mailClient, mailSeller, checkInsArray);
+        processEmailSend(nameClient, emailId, mailClient, mailSeller, checkInsArray);
 
     } catch (error) {
         console.error("[ERROR] Erro ao registrar o envio de e-mail:", error.message);
@@ -33,7 +34,7 @@ exports.handleSendMailCheckin = async (req, res) => {
     }
 };
 
-async function processEmailSend(emailId, mailClient, mailSeller, checkIns) {
+async function processEmailSend(nameClient, emailId, mailClient, mailSeller, checkIns) {
     try {
         console.log(`[INFO] Processando envio de e-mail para ID: ${emailId} com ${checkIns.length} check-ins`);
 
@@ -70,7 +71,7 @@ async function processEmailSend(emailId, mailClient, mailSeller, checkIns) {
         //     console.log(`[INFO] Mais de 10 check-ins. PDF não será gerado para evitar processamento desnecessário.`);
         // }
 
-        await emailService.sendMailCheckin(emailId, mailClient, mailSeller, password, validCheckins, pdfBuffer);
+        await emailService.sendMailCheckin(nameClient, emailId, mailClient, mailSeller, password, validCheckins, pdfBuffer);
 
     } catch (error) {
         console.error(`[ERROR] Falha ao processar envio de e-mail para ID: ${emailId}`, error.message);
@@ -110,7 +111,7 @@ exports.checkEmailStatus = async (req, res) => {
 };
 
 exports.handleSendMailReport = async(req, res) => {
-    const { mailClient, mailSeller, reportId, data } = req.body;
+    const { nameClient, mailClient, mailSeller, reportId, data } = req.body;
 
     if (!mailClient || !reportId || !mailSeller) {
         return res.status(400).json({ success: false, message: "Parâmetros inválidos." });
@@ -126,7 +127,7 @@ exports.handleSendMailReport = async(req, res) => {
 
         const password = reportDoc.data().senha;
 
-        await emailService.sendMailReport(mailClient, mailSeller, reportId, password, data);
+        await emailService.sendMailReport(nameClient, mailClient, mailSeller, reportId, password, data);
 
         res.status(200).json({ success: true, message: "E-mail enviado com sucesso!" });
     } catch (error) {

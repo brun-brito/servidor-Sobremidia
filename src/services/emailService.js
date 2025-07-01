@@ -14,15 +14,20 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-async function sendMailCheckin(emailId, mailClient, mailSeller, password, checkins, pdfBuffer) {
+async function sendMailCheckin(nameClient, emailId, mailClient, mailSeller, password, checkins, pdfBuffer) {
     const checkinIds = checkins.map(checkin => checkin.id).join("&");
     const reportLink = `https://us-central1-sobremidia-ce.cloudfunctions.net/v1/checkin/html/${checkinIds}`;
 
+    const dataHoje = new Date().toLocaleDateString("pt-BR", {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
     const inlineHtml = `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f4f4f4;">
             <div style="max-width: 500px; margin: auto; padding: 20px; background: white; border-radius: 5px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1);">
                 <h2 style="color: #24d464;">Seu Relatório Está Pronto!</h2>
-                <p>Olá,</p>
+                <p>Olá, ${nameClient}!</p>
                 <p>O relatório de checkin já está disponível para acesso. Para acessar, clique no link abaixo:</p>
                 <a href="${reportLink}" style="display: inline-block; background: #24d464; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acessar Relatório</a>
                 <p><strong>Senha de acesso:</strong> <span style="background: #f1f1f1; padding: 5px 10px; border-radius: 5px;">${password}</span></p>
@@ -30,6 +35,7 @@ async function sendMailCheckin(emailId, mailClient, mailSeller, password, checki
                 <hr style="border: none; border-top: 1px solid #ccc;">
                 <p>Atenciosamente,</p>
                 <p><strong>Equipe Sobremídia</strong></p>
+                <p>${dataHoje}</p>
             </div>
         </div>
     `;
@@ -87,7 +93,7 @@ async function sendMailCheckin(emailId, mailClient, mailSeller, password, checki
     }
 }
 
-async function sendMailReport(mailClient, mailSeller, reportId, password, data) {
+async function sendMailReport(nameClient, mailClient, mailSeller, reportId, password, data) {
     const reportLink = `https://us-central1-sobremidia-ce.cloudfunctions.net/v1/reports/html/${reportId}`;
     // let pdfBuffer;
     // let sendWithoutPDF = false;
@@ -99,13 +105,17 @@ async function sendMailReport(mailClient, mailSeller, reportId, password, data) 
     //     console.error("[ERROR] Falha ao gerar o PDF. Tentando enviar sem anexo.", error.message);
     //     sendWithoutPDF = true;
     // }
-
+    const dataHoje = new Date().toLocaleDateString("pt-BR", {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
     // HTML formatado para o e-mail
     const emailHtml = `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f4f4f4;">
             <div style="max-width: 500px; margin: auto; padding: 20px; background: white; border-radius: 5px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1);">
                 <h2 style="color: #24d464;">Seu Relatório Está Pronto!</h2>
-                <p>Olá,</p>
+                <p>Olá, ${nameClient}!</p>
                 <p>O relatório de inserções já está disponível para acesso. Para acessar, clique no link abaixo:</p>
                 <a href="${reportLink}" style="display: inline-block; background: #24d464; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acessar Relatório</a>
                 <p><strong>Senha de acesso:</strong> <span style="background: #f1f1f1; padding: 5px 10px; border-radius: 5px;">${password}</span></p>
@@ -113,6 +123,7 @@ async function sendMailReport(mailClient, mailSeller, reportId, password, data) 
                 <hr style="border: none; border-top: 1px solid #ccc;">
                 <p>Atenciosamente,</p>
                 <p><strong>Equipe Sobremídia</strong></p>
+                <p>${dataHoje}</p>
             </div>
         </div>
     `;
