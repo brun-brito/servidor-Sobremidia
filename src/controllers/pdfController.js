@@ -1,6 +1,20 @@
-const { createPDFRelatorio, createPDFCheckin, createPDFMidiasAtivas } = require("../services/pdfService");
+const { createPDFRelatorio, createPDFCheckin, createPDFMidiasAtivas, createPDFProposta, createPDFPedidoInsercao } = require("../services/pdfService");
 const { downloadAndProcessReport } = require("../services/reportService")
 const { db }= require("../config/firebase");
+
+const generatePDFProposta = async (req, res) => {
+  try {
+    const proposta = req.body;
+    const pdfBuffer = await createPDFProposta(proposta);
+
+    res.setHeader("Content-Disposition", "attachment; filename=proposta.pdf");
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("Erro ao gerar PDF da proposta:", error);
+    res.status(500).send("Erro ao gerar PDF da proposta.");
+  }
+};
 
 const generatePDFRelatorio = async (req, res) => {
     try {
@@ -74,8 +88,24 @@ const generatePDFMidiasAtivas = async (req, res) => {
   }
 };
 
+const generatePDFPedidoInsercao = async (req, res) => {
+  try {
+    const pedido = req.body;
+    const pdfBuffer = await createPDFPedidoInsercao(pedido);
+
+    res.setHeader("Content-Disposition", "attachment; filename=pedido_insercao.pdf");
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("Erro ao gerar PDF do Pedido de Inserção:", error);
+    res.status(500).send("Erro ao gerar PDF do Pedido de Inserção.");
+  }
+};
+
 module.exports = {
   generatePDFRelatorio,
   generatePDFCheckin,
   generatePDFMidiasAtivas,
+  generatePDFProposta,
+  generatePDFPedidoInsercao,
 };
