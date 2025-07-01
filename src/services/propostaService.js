@@ -14,7 +14,9 @@ exports.createProposta = async (dados) => {
         prazo_pagamento,
         forma_pagamento,
         observacoes_adicionais,
-        paineis // array de painéis
+        paineis,
+        infoCliente,
+        infoAgencia
     } = dados;
 
     // Validação básica dos campos gerais
@@ -28,12 +30,11 @@ exports.createProposta = async (dados) => {
 
     // Validação dos painéis
     paineis.forEach((p, idx) => {
-        if (!p.painel) throw new Error(`O campo 'Painel' é obrigatório no painel ${idx + 1}.`);
+        if (!p.painelId || !p.painelNome) throw new Error(`O campo 'Painel' é obrigatório no painel ${idx + 1}.`);
         if (!p.periodo_veiculacao || !p.periodo_veiculacao.inicio || !p.periodo_veiculacao.fim)
             throw new Error(`O período de veiculação é obrigatório no painel ${idx + 1}.`);
         if (!p.insercoes_diarias) throw new Error(`O campo 'Inserções diárias' é obrigatório no painel ${idx + 1}.`);
         if (!p.valor_unitario_bruto) throw new Error(`O campo 'Valor unitário bruto' é obrigatório no painel ${idx + 1}.`);
-        // Adicione outras validações conforme necessário
     });
 
     // Geração automática do número do PI
@@ -60,6 +61,7 @@ exports.createProposta = async (dados) => {
 
     const docRef = db.collection(COLLECTION_NAME).doc();
     await docRef.set({
+        status: "em aberto",
         cliente,
         agencia,
         numero_pi,
@@ -73,6 +75,8 @@ exports.createProposta = async (dados) => {
         forma_pagamento,
         observacoes_adicionais,
         paineis,
+        infoCliente,
+        infoAgencia,
         criado_em: new Date(),
         atualizado_em: new Date(),
     });
