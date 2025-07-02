@@ -64,7 +64,7 @@ async function resolveLocations(locations) {
     } else {
       const matchedLocals = locations
         .map(id => {
-          const painel = paineis.find(p => p.id == id);
+          const painel = paineis.find(p => p.idManager == id);
           if (!painel) {
             console.warn(`⚠️ Painel com ID '${id}' não encontrado.`);
             return null;
