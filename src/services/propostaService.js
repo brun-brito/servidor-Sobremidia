@@ -16,7 +16,8 @@ exports.createProposta = async (dados) => {
         observacoes_adicionais,
         paineis,
         infoCliente,
-        infoAgencia
+        infoAgencia,
+        executivo_vendas,
     } = dados;
 
     // Validação básica dos campos gerais
@@ -34,7 +35,6 @@ exports.createProposta = async (dados) => {
         if (!p.periodo_veiculacao || !p.periodo_veiculacao.inicio || !p.periodo_veiculacao.fim)
             throw new Error(`O período de veiculação é obrigatório no painel ${idx + 1}.`);
         if (!p.insercoes_diarias) throw new Error(`O campo 'Inserções diárias' é obrigatório no painel ${idx + 1}.`);
-        if (!p.valor_unitario_bruto) throw new Error(`O campo 'Valor unitário bruto' é obrigatório no painel ${idx + 1}.`);
     });
 
     // Geração automática do número do PI
@@ -77,6 +77,7 @@ exports.createProposta = async (dados) => {
         paineis,
         infoCliente,
         infoAgencia,
+        executivo_vendas,
         criado_em: new Date(),
         atualizado_em: new Date(),
     });
