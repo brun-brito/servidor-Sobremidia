@@ -14,6 +14,7 @@ const xlsRoute = require("./routes/xls");
 const clientesRoute = require("./routes/clientes");
 const agenciasRoute = require("./routes/agencias");
 const propostaRoute = require("./routes/proposta");
+const executivosRoute = require("./routes/executivos");
 const PORT = process.env.PORT || 3000;
 const app = express();
 const session = require("express-session");
@@ -54,5 +55,6 @@ app.use("/xls", xlsRoute);
 app.use("/clientes", clientesRoute);
 app.use("/agencias", agenciasRoute);
 app.use("/propostas", propostaRoute);
+app.use("/executivos", executivosRoute);
 
 module.exports = app;
