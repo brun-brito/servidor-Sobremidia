@@ -534,22 +534,43 @@ const createPDFProposta = async (proposta) => {
     doc.setFont(undefined, "normal");
     doc.setFontSize(9);
     doc.text([
-      "RUA DOUTOR FRANCISCO GADELHA, 1480 LJ 02",
-      "FORTALEZA/CE/ 6081",
-      "FONE/ FAX (85) 99613-5757",
+      "RUA JOSÉ EUCLÍDES, 240 - FÁTIMA",
+      "FORTALEZA/CE, 60.040-520",
+      "FONE/ FAX (85) 99980-8767",
       "CNPJ: 53.385.130/0001-56",
     ], marginX + logoW + 4, headerY + 11);
-  
-    // 3. Título e PI (à direita)
-    // doc.setFont(undefined, "bold");
-    // doc.setFontSize(18);
-    // doc.setFillColor(240);
-    // doc.rect(pageW - marginX - piW, headerY, piW, headerH, "F");
-    // doc.setTextColor(0);
-    // doc.text("PROPOSTA DE\nINSERÇÃO", pageW - marginX - piW / 2, headerY + 10, { align: "center" });
-    // doc.setFontSize(16);
-    // doc.text((proposta.numero_pi || "-"), pageW - marginX - piW / 2, headerY + 25, { align: "center" });
-    // doc.setFontSize(14);
+
+    // Data de emissão (atualizado_em)
+    console.log(proposta);
+    if (proposta.atualizado_em) {
+      let dataEmissao;
+      if (typeof proposta.atualizado_em === "number") {
+        // Timestamp em segundos
+        dataEmissao = moment.unix(proposta.atualizado_em).format("DD/MM/YYYY HH:mm:ss");
+      } else if (typeof proposta.atualizado_em === "string") {
+        // Tenta parsear string
+        dataEmissao = moment(proposta.atualizado_em).format("DD/MM/YYYY HH:mm:ss");
+      } else if (proposta.atualizado_em._seconds) {
+        // Firestore Timestamp
+        dataEmissao = moment.unix(proposta.atualizado_em._seconds).format("DD/MM/YYYY HH:mm:ss");
+      } else {
+        dataEmissao = "-";
+      }
+      doc.setFontSize(9);
+      doc.setFont(undefined, "bold");
+      doc.text(`Data emissão: `, marginX, headerY + headerH - 2);
+      doc.setFont(undefined, "normal");
+      doc.text(`${dataEmissao}`, marginX + 23, headerY + headerH - 2);
+
+      // Executivo de vendas
+      if (proposta.executivo_vendas) {
+        doc.setFontSize(9);
+        doc.setFont(undefined, "bold");
+        doc.text(`Executivo responsável: `, marginX, headerY + headerH + 4);
+        doc.setFont(undefined, "normal");
+        doc.text(`${proposta.executivo_vendas || "-"}`, marginX + 37, headerY + headerH + 4);
+      }
+    }
   
     // Volta para preto e fonte normal
     doc.setFont(undefined, "normal");
@@ -557,24 +578,26 @@ const createPDFProposta = async (proposta) => {
   
     // Ajuste início do conteúdo
     let y = headerY + headerH + 6;
-  
-    // Faixa verde título
-    doc.setFillColor(35, 213, 99);
-    doc.rect(0, y, pageW, 25, 'F');
+
+    // Título "PROPOSTA COMERCIAL" em verde
     doc.setFontSize(18);
-    doc.setTextColor(255);
+    doc.setTextColor(35, 213, 99);
+    doc.setFont(undefined, "bold");
     doc.text("PROPOSTA COMERCIAL", pageW / 2, y + 10, { align: "center" });
-  
-    // Cliente
+
+    // Cliente em verde, logo abaixo
     doc.setFontSize(14);
+    doc.setTextColor(35, 213, 99);
+    doc.setFont(undefined, "normal");
     doc.text(`CLIENTE: ${proposta.cliente || "-"}`, pageW / 2, y + 20, { align: "center" });
-  
+
+    // Volta para preto para o restante do conteúdo
     doc.setTextColor(0);
   
     // Tabela
     const tableMarginY = y + 30;
     const tableW = pageW - marginX * 2;
-    const colWidths = [16, 17, 24, 54, 18, 20, 17, 17, 16, 22, 18, 26];
+    const colWidths = [16, 17, 24, 54, 19, 20, 17, 17, 16, 25, 18, 26];
     const headers = [
       "CÓD", "Formato", "Cidade", "Produto", "Inserções/Dia",
       "Total Inserções", "Início", "Fim", "Qtd. dias", "Valor tabela", "Desconto", "Valor mensal c/desconto"
@@ -592,21 +615,23 @@ const createPDFProposta = async (proposta) => {
       maxHeaderHeight = Math.max(maxHeaderHeight, cellH);
     }
   
-    // Cabeçalhos
+    // Cabeçalhos da tabela (sem fill, apenas borda e texto preto)
     doc.setFont(undefined, "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(0); // preto para o texto do header
+
     let xHeader = marginX;
     for (let i = 0; i < headers.length; i++) {
+      doc.rect(xHeader, yTable, colWidths[i], maxHeaderHeight); // apenas borda
       const lines = doc.splitTextToSize(headers[i], colWidths[i] - 2);
-      doc.setFillColor(35, 213, 99);
-      doc.rect(xHeader, yTable, colWidths[i], maxHeaderHeight, 'F');
-      doc.setTextColor(255);
+      const startY = yTable + (maxHeaderHeight - lines.length * 4) / 2 + 3;
       lines.forEach((line, j) => {
-        doc.text(line, xHeader + colWidths[i] / 2, yTable + 5 + j * 4, { align: "center" });
+        doc.text(line, xHeader + colWidths[i] / 2, startY + j * 4, { align: "center" });
       });
       xHeader += colWidths[i];
     }
     doc.setFont(undefined, "normal");
-    doc.setTextColor(0);
+    doc.setFontSize(8);
     yTable += maxHeaderHeight;
   
     // Linhas da tabela
@@ -628,20 +653,19 @@ const createPDFProposta = async (proposta) => {
     
         // Redesenha cabeçalho
         doc.setFont(undefined, "bold");
-        let xHeader = marginX;
+        doc.setFontSize(10);
+        doc.setTextColor(0);
+        xHeader = marginX;
         for (let i = 0; i < headers.length; i++) {
+          doc.rect(xHeader, yTable, colWidths[i], maxHeaderHeight);
           const lines = doc.splitTextToSize(headers[i], colWidths[i] - 2);
-          doc.setFillColor(35, 213, 99);
-          doc.rect(xHeader, yTable, colWidths[i], maxHeaderHeight, 'F');
-          doc.setTextColor(255);
-          doc.setFontSize(10);
+          const startY = yTable + (maxHeaderHeight - lines.length * 4) / 2 + 3;
           lines.forEach((line, j) => {
-            doc.text(line, xHeader + colWidths[i] / 2, yTable + 5 + j * 4, { align: "center" });
+            doc.text(line, xHeader + colWidths[i] / 2, startY + j * 4, { align: "center" });
           });
           xHeader += colWidths[i];
         }
         doc.setFont(undefined, "normal");
-        doc.setTextColor(0);
         doc.setFontSize(8);
         yTable += maxHeaderHeight;
       }
@@ -672,15 +696,20 @@ const createPDFProposta = async (proposta) => {
         p.formato || p.formato_peca || "-", 
         p.cidade || "-", 
         doc.splitTextToSize(p.produto || p.painel || "-", colWidths[3] - 2),
-        String(p.insercoes_diarias || p.insercoes_dia || "-"), 
-        String(p.insercoes_mes || "-"),
+        (p.insercoes_diarias || p.insercoes_dia || 0).toLocaleString("pt-BR"), 
+        (insercoesMesNum || 0).toLocaleString("pt-BR"),
         p.inicio || (p.periodo_veiculacao?.inicio || "-"), 
         p.fim || (p.periodo_veiculacao?.fim || "-"), 
         String(p.qtd_dias || "-"),
-        `R$ ${p.valor_unitario_bruto || p.valor_tabela || "-"}`, 
+        `R$ ${(valorTabelaNum || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, 
         p.percentual_desconto || p.desconto || "0%", 
-        `R$ ${p.valor_unitario_liquido || p.valor_final || "-"}`
-      ];
+        (() => {
+          const valor = `R$ ${(valorFinalNum || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+          if (p.bonificado) {
+            return [valor, "(Bonificado)"];
+          }
+          return valor;
+        })()      ];
     
       doc.setFontSize(8);
       row.forEach((text, i) => {
@@ -689,7 +718,14 @@ const createPDFProposta = async (proposta) => {
           : doc.splitTextToSize(text, colWidths[i] - 2);
         doc.rect(x, yTable, colWidths[i], rowHeight);
         cellText.forEach((line, j) => {
+          const isBonificadoLine = i === 11 && line === "(Bonificado)";
+          if (isBonificadoLine) {
+            doc.setTextColor(0, 150, 0); // Verde escuro
+          }
           doc.text(line, x + colWidths[i] / 2, yTable + 5 + j * 4, { align: "center" });
+          if (isBonificadoLine) {
+            doc.setTextColor(0); // Volta para preto
+          }
         });
         x += colWidths[i];
       });
@@ -697,31 +733,29 @@ const createPDFProposta = async (proposta) => {
       yTable += rowHeight;
     }
   
-    // Linha de totais destacada em verde, negrito e branco
-    let x = marginX;
-    const totalsRow = [
-      "", "TOTAIS", "", "", 
-      String(totalInsercoesDia), 
-      String(totalInsercoesMes),
-      "", "", "",
-      `R$ ${totalTabela.toFixed(2).replace(".", ",")}`,
-      "", 
-      `R$ ${totalFinal.toFixed(2).replace(".", ",")}`
-    ];
+    // Linha de totais (footer) da tabela principal (sem fill, apenas borda)
+    x = marginX;
     doc.setFont(undefined, "bold");
     doc.setFontSize(10);
-    doc.setTextColor(255);
+    doc.setTextColor(0);
+    const totalsRow = [
+      "", "TOTAIS", "", "", 
+      totalInsercoesDia.toLocaleString("pt-BR"), 
+      totalInsercoesMes.toLocaleString("pt-BR"),
+      "", "", "",
+      `R$ ${totalTabela.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      "", 
+      `R$ ${totalFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+    ];
     for (let i = 0; i < totalsRow.length; i++) {
+      doc.rect(x, yTable, colWidths[i], rowHeight); // apenas borda
       const cellText = doc.splitTextToSize(totalsRow[i], colWidths[i] - 2);
-      doc.setFillColor(35, 213, 99);
-      doc.rect(x, yTable, colWidths[i], rowHeight, 'F');
       cellText.forEach((line, j) => {
         doc.text(line, x + colWidths[i] / 2, yTable + 5 + j * 4, { align: "center" });
       });
       x += colWidths[i];
     }
     doc.setFont(undefined, "normal");
-    doc.setTextColor(0);
     yTable += rowHeight;
   
     // 1. NOVA PÁGINA DE PROJEÇÕES DE AUDIÊNCIA
@@ -730,35 +764,30 @@ const createPDFProposta = async (proposta) => {
     pageNumber++;
 
     // Cabeçalho destacado da nova seção
-    doc.setFillColor(35, 213, 99);
-    doc.rect(0, 0, pageW, 25, 'F');
     doc.setFontSize(22);
-    doc.setTextColor(255);
-    doc.setFont(undefined, "normal");
+    doc.setTextColor(35, 213, 99);
+    doc.setFont(undefined, "bold");
+    // doc.setFont(undefined, "normal");
     doc.text("PROJEÇÕES DE AUDIÊNCIA E IMPACTO", pageW / 2, 16, { align: "center" });
 
-    // Cabeçalho da tabela de audiência
+    // Cabeçalho da tabela de audiência (sem fill, apenas borda e texto preto)
     const audHeaders = [
     "CÓD", "Formato", "Cidade", "Produto", "Início", "Fim", "Qtd. Dias", "Impactos", "Audiência", "Veículos"
     ];
-    // larguras das colunas
-    const audColWidths = [16, 18, 24, 44, 26, 26, 16, 22, 22, 22];
+    const audColWidths = [16, 18, 24, 44, 26, 26, 18, 22, 22, 22];
     let audY = 30;
     let audX = marginX;
 
-    // Desenha cabeçalho da tabela
     doc.setFont(undefined, "bold");
-    for (let i = 0; i < audHeaders.length; i++) {
-    doc.setFillColor(35, 213, 99);
-    doc.rect(audX, audY, audColWidths[i], 10, 'F');
-    doc.setTextColor(255);
     doc.setFontSize(10);
-    doc.text(audHeaders[i], audX + audColWidths[i] / 2, audY + 7, { align: "center" });
-    audX += audColWidths[i];
+    doc.setTextColor(0);
+    for (let i = 0; i < audHeaders.length; i++) {
+      doc.rect(audX, audY, audColWidths[i], 10); // apenas borda
+      doc.text(audHeaders[i], audX + audColWidths[i] / 2, audY + 7, { align: "center" });
+      audX += audColWidths[i];
     }
     doc.setFont(undefined, "normal");
     doc.setFontSize(8);
-    doc.setTextColor(0);
     audY += 10;
   
     // Ajuste a altura das células da tabela de audiência:
@@ -776,9 +805,9 @@ const createPDFProposta = async (proposta) => {
         p.inicio || (p.periodo_veiculacao?.inicio || "-"),
         p.fim || (p.periodo_veiculacao?.fim || "-"),
         String(p.qtd_dias || "-"),
-        String(p.impactos_mes || "-"),
-        String(p.audiencia_mes || "-"),
-        String(p.total_veiculos_mes || "-")
+        (p.impactos_mes || 0).toLocaleString("pt-BR"),
+        (p.audiencia_mes || 0).toLocaleString("pt-BR"),
+        (p.total_veiculos_mes || 0).toLocaleString("pt-BR")
       ];
 
       // Acumula totais
@@ -814,41 +843,39 @@ const createPDFProposta = async (proposta) => {
         audX = marginX;
         // Cabeçalho da tabela
         doc.setFont(undefined, "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(0);
         for (let i = 0; i < audHeaders.length; i++) {
-          doc.setFillColor(35, 213, 99);
-          doc.rect(audX, audY, audColWidths[i], 10, 'F');
-          doc.setTextColor(255);
+          doc.rect(audX, audY, audColWidths[i], 10); // apenas borda
           doc.text(audHeaders[i], audX + audColWidths[i] / 2, audY + 7, { align: "center" });
           audX += audColWidths[i];
         }
         doc.setFont(undefined, "normal");
-        doc.setTextColor(0);
+        doc.setFontSize(8);
         audY += 10;
       }
     }
 
-    // Linha de totais destacada em verde, negrito e branco para audiência
+    // Linha de totais da tabela de audiência (sem fill, apenas borda)
     audX = marginX;
-    const audTotalsRow = [
-      "", "TOTAIS", "", "", "", "", "",
-      String(totalImpactos),
-      String(totalAudiencia),
-      String(totalVeiculos)
-    ];
     doc.setFont(undefined, "bold");
     doc.setFontSize(10);
-    doc.setTextColor(255);
+    doc.setTextColor(0);
+    const audTotalsRow = [
+      "", "TOTAIS", "", "", "", "", "",
+      totalImpactos.toLocaleString("pt-BR"),
+      totalAudiencia.toLocaleString("pt-BR"),
+      totalVeiculos.toLocaleString("pt-BR")
+    ];
     for (let i = 0; i < audTotalsRow.length; i++) {
+      doc.rect(audX, audY, audColWidths[i], audRowHeight); // apenas borda
       const cellText = doc.splitTextToSize(audTotalsRow[i], audColWidths[i] - 2);
-      doc.setFillColor(35, 213, 99);
-      doc.rect(audX, audY, audColWidths[i], audRowHeight, 'F');
       cellText.forEach((line, j) => {
         doc.text(line, audX + audColWidths[i] / 2, audY + 5 + j * 4, { align: "center" });
       });
       audX += audColWidths[i];
     }
     doc.setFont(undefined, "normal");
-    doc.setTextColor(0);
     audY += audRowHeight;
   
     // Quebra de página se necessário
@@ -1015,7 +1042,7 @@ const createPDFPedidoInsercao = async (pedido) => {
   doc.setFont(undefined, "bold");
   doc.text("Endereço:", col1X, yVeiculo + 3 * lineH);
   doc.setFont(undefined, "normal");
-  doc.text("Rua Doutor Francisco Gadelha, 1480 - Loja 02", col1X + 30, yVeiculo + 3 * lineH);
+  doc.text("RUA JOSÉ EUCLÍDES, 240 - FÁTIMA", col1X + 30, yVeiculo + 3 * lineH);
 
   doc.setFont(undefined, "bold");
   doc.text("Cidade:", col1X, yVeiculo + 4 * lineH);
@@ -1025,7 +1052,7 @@ const createPDFPedidoInsercao = async (pedido) => {
   doc.setFont(undefined, "bold");
   doc.text("CEP:", col1X, yVeiculo + 5 * lineH);
   doc.setFont(undefined, "normal");
-  doc.text("60.714-705", col1X + 30, yVeiculo + 5 * lineH);
+  doc.text("60.040-520", col1X + 30, yVeiculo + 5 * lineH);
 
   // --- Bloco campanha (direita, alinhado ao topo do veículo) ---
   let campBoxY = yVeiculo;
@@ -1059,7 +1086,7 @@ const createPDFPedidoInsercao = async (pedido) => {
   const rowHeight = 9;
   const colWidths = [10, 25, 70, 17, 17, 12, 12, 21, 22, 22, 22, 22];
   const headers = [
-    "Item", "Cidade", "Painel", "Início", "Fim", "Dias", "Telas", "Inserção/dia", "Inserções TOTAIS", "Valor Tabela", "Desconto", "Valor Total"
+    "Item", "Cidade", "Painel", "Início", "Fim", "Dias", "Telas", "Inserções/dia", "Inserções TOTAIS", "Valor Tabela", "Desconto", "Valor Total"
   ];
 
   // Cabeçalho tabela (ajuste automático de altura)
@@ -1068,8 +1095,7 @@ const createPDFPedidoInsercao = async (pedido) => {
   doc.setFontSize(9);
   doc.setTextColor(255);
 
-  // Calcule a altura máxima do cabeçalho
-  let headerLines = [];
+  // Calcul255 a altura máxim255 do cabeçalhxim255let headerLines = [];
   let maxHeaderHeight = 0;
   for (let i = 0; i < colWidths.length; i++) {
     const lines = doc.splitTextToSize(headers[i], colWidths[i] - 2);
@@ -1130,6 +1156,14 @@ const createPDFPedidoInsercao = async (pedido) => {
     totalDesconto += (valorTabela - valorTotal);
     totalLiquido += valorTotal;
 
+    // Monta a célula de valor total igual à proposta
+    const valorTotalCell = item.bonificado
+      ? [`R$ ${valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, "(Bonificado)"]
+      : [`R$ ${valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`];
+
+    // (Opcional) Aumenta a altura da linha se bonificado
+    const thisRowHeight = item.bonificado ? rowHeight + 6 : rowHeight;
+
     const row = [
       String(idx + 1),
       item.cidade || "-",
@@ -1138,22 +1172,32 @@ const createPDFPedidoInsercao = async (pedido) => {
       item.fim || "-",
       String(item.dias || "-"),
       String(item.telas || "-"),
-      String(item.insercao_dia || "-"),
-      String(item.insercoes_totais || "-"),
+      (item.insercao_dia || 0).toLocaleString("pt-BR"),
+      (item.insercoes_totais || 0).toLocaleString("pt-BR"),
       `R$ ${valorTabela.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
       `${desconto ? desconto + "%" : "0%"}`,
-      `R$ ${valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+      valorTotalCell
     ];
+
     doc.setFontSize(8);
     for (let i = 0; i < colWidths.length; i++) {
       const cellText = Array.isArray(row[i]) ? row[i] : doc.splitTextToSize(row[i], colWidths[i] - 2);
-      doc.rect(x, yTable, colWidths[i], rowHeight);
+      doc.rect(x, yTable, colWidths[i], thisRowHeight);
+      // Centraliza verticalmente as linhas da célula
+      const startY = yTable + (thisRowHeight - cellText.length * 4) / 2 + 4;
       cellText.forEach((line, j) => {
-        doc.text(line, x + colWidths[i] / 2, yTable + 5 + j * 4, { align: "center" });
+        const isBonificadoLine = i === 11 && line === "(Bonificado)";
+        if (isBonificadoLine) {
+          doc.setTextColor(0, 150, 0); // Verde escuro
+        }
+        doc.text(line, x + colWidths[i] / 2, startY + j * 4, { align: "center" });
+        if (isBonificadoLine) {
+          doc.setTextColor(0); // Volta para preto
+        }
       });
       x += colWidths[i];
     }
-    yTable += rowHeight;
+    yTable += thisRowHeight;
   }
 
   // Totais: ajuste para garantir que os valores aparecem corretamente
