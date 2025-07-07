@@ -32,8 +32,12 @@ exports.createUserService = async({ nome, email, senha, funcao }) => {
   }
 }
 
-exports.listUsersService = async() => {
-  const snapshot = await db.collection(COLLECTION_NAME).get();
+exports.listUsersService = async(email) => {
+  let query = db.collection(COLLECTION_NAME);
+  if (email) {
+    query = query.where("email", "==", email);
+  }
+  const snapshot = await query.get();
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 

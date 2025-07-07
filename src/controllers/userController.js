@@ -11,7 +11,7 @@ exports.createUser = async(req, res) => {
 
 exports.listUsers = async(req, res) => {
   try {
-    const users = await userService.listUsersService();
+    const users = await userService.listUsersService(req.query.mail);
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
