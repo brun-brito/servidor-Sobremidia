@@ -546,13 +546,13 @@ const createPDFProposta = async (proposta) => {
       let dataEmissao;
       if (typeof proposta.atualizado_em === "number") {
         // Timestamp em segundos
-        dataEmissao = moment.unix(proposta.atualizado_em).format("DD/MM/YYYY HH:mm:ss");
+        dataEmissao = moment.unix(proposta.atualizado_em).utcOffset('-03:00').format("DD/MM/YYYY HH:mm:ss");
       } else if (typeof proposta.atualizado_em === "string") {
         // Tenta parsear string
-        dataEmissao = moment(proposta.atualizado_em).format("DD/MM/YYYY HH:mm:ss");
+        dataEmissao = moment(proposta.atualizado_em).utcOffset('-03:00').format("DD/MM/YYYY HH:mm:ss");
       } else if (proposta.atualizado_em._seconds) {
         // Firestore Timestamp
-        dataEmissao = moment.unix(proposta.atualizado_em._seconds).format("DD/MM/YYYY HH:mm:ss");
+        dataEmissao = moment.unix(proposta.atualizado_em._seconds).utcOffset('-03:00').format("DD/MM/YYYY HH:mm:ss");
       } else {
         dataEmissao = "-";
       }
@@ -922,169 +922,240 @@ const createPDFPedidoInsercao = async (pedido) => {
   const marginX = 8;
   let y = 10;
 
-  // Faixa verde topo + logo
   doc.setFillColor(35, 213, 99);
-  doc.rect(0, y, pageW, 28, 'F');
-  const logoPath = path.join(__dirname, "../assets/fotos/logoPI.jpg");
-  const logoBase64 = await loadImageAsBase64(logoPath);
-  if (logoBase64) {
-    doc.addImage(logoBase64, "PNG", marginX, y + 4, 65, 20);//40, 12);
+    doc.rect(0, y, pageW, 24, 'F');
+
+    // Logo menor
+    const logoPath = path.join(__dirname, "../assets/fotos/logoPI.jpg");
+    const logoBase64 = await loadImageAsBase64(logoPath);
+    const logoW = 38, logoH = 14;
+    if (logoBase64) {
+      doc.addImage(logoBase64, "PNG", marginX, y + 4, logoW, logoH);
+    }
+
+    // Dados da Sobremidia ao lado da logo
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.setTextColor(255);
+    doc.text("SOBREMIDIA DIGITAL LTDA", marginX + logoW + 4, y + 8);
+    doc.setFont(undefined, "normal");
+    doc.setFontSize(8);
+    doc.text([
+      "RUA JOSÉ EUCLÍDES, 240 - FÁTIMA",
+      "FORTALEZA/CE, 60.040-520",
+      "FONE/ FAX (85) 99980-8767",
+      "CNPJ: 53.385.130/0001-56"
+    ], marginX + logoW + 4, y + 12);
+
+    // PI e Emissão (direita)
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(13);
+    doc.text(`PI: ${pedido.numero_pi || "-"}`, pageW - marginX - 45, y + 10);
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(9);
+    doc.text(`Emissão: `, pageW - marginX - 45, y + 16);
+    doc.setFont(undefined, "normal");
+    doc.text(`${pedido.data_emissao || "-"}`, pageW - marginX - 45 + 17, y + 16);
+
+    // Executivo
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(9);
+    doc.text(`Executivo:`, pageW - marginX - 45, y + 21);
+    doc.setFont(undefined, "normal");
+    doc.text(`${pedido.executivo?.nome || "-"}`, pageW - marginX - 45 + 18, y + 21);
+
+    // Título centralizado
+    doc.setFontSize(16);
+    doc.setFont(undefined, "bold");
+    doc.text("PEDIDO DE INSERÇÃO", pageW / 2, y + 15, { align: "center" });
+
+  // --- Bloco CLIENTE e AGÊNCIA em 2 colunas cada, lado a lado, otimizando espaço ---
+  let yCliente = y + 28;
+  const blocoW = (pageW - marginX * 2) / 2 - 4;
+  const col1X = marginX;
+  const col2X = marginX + blocoW + 8;
+  const colLong = 65; // largura para campos longos
+  const colShort = 90; // início dos campos curtos (ajuste conforme necessário)
+  const fontSizeLabel = 8.5;
+  const fontSizeValue = 8;
+
+  // Função para quebrar endereço em até 2 linhas
+  function splitEndereco(endereco, maxLen = 48) {
+    if (!endereco) return ["-"];
+    if (endereco.length <= maxLen) return [endereco];
+    const idx = endereco.lastIndexOf(" ", maxLen);
+    if (idx === -1) return [endereco];
+    return [endereco.slice(0, idx), endereco.slice(idx + 1)];
   }
-  doc.setFontSize(20);
-  doc.setFont(undefined, "bold");
-  doc.setTextColor(255);
-  doc.text("PEDIDO DE INSERÇÃO", pageW / 2, y + 16, { align: "center" });
 
-  // Bloco AP/Campanha (direita, dentro da faixa verde)
-  let apBoxW = 70;
-  let apBoxH = 28;
-  let apBoxX = pageW - marginX - apBoxW;
-  let apBoxY = y;
-  doc.setFillColor(35, 213, 99);
-  doc.rect(apBoxX, apBoxY, apBoxW, apBoxH, 'F');
-  doc.setTextColor(255);
-  doc.setFontSize(14);
-  doc.setFont(undefined, "bold");
-  doc.text(`PI: ${pedido.numero_pi || "PI: -"}`, apBoxX + apBoxW / 2, apBoxY + 13, { align: "center" });
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
-  doc.text(`Emissão: ${pedido.data_emissao || "-"}`, apBoxX + 18, apBoxY + 20);
-
-  // --- Cabeçalho Cliente/Veículo (2 colunas) ---
-  const lineH = 7;
-  const col1X = marginX + 2;
-  const col2X = pageW / 2 + 2;
-  let yCliente = y + apBoxH + 6;
-
-  // Cliente (esquerda)
-  doc.setFontSize(10);
+  // CLIENTE
+  doc.setFontSize(fontSizeLabel);
   doc.setTextColor(0);
   doc.setFont(undefined, "bold");
   doc.text("Cliente:", col1X, yCliente);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.nome || "-", col1X + 30, yCliente);
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.cliente?.nome || "-", col1X + 16, yCliente, { maxWidth: colLong });
 
   doc.setFont(undefined, "bold");
-  doc.text("CNPJ:", col1X, yCliente + lineH);
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Endereço:", col1X, yCliente + 6);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.cnpj || "-", col1X + 30, yCliente + lineH);
+  doc.setFontSize(fontSizeValue);
+  const endCliente = splitEndereco(pedido.cliente?.endereco);
+  doc.text(endCliente[0], col1X + 16, yCliente + 6, { maxWidth: colLong });
+  if (endCliente[1]) doc.text(endCliente[1], col1X + 16, yCliente + 10, { maxWidth: colLong });
+
+  // Campos curtos cliente (alinhados à direita)
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("CNPJ:", col1X + colShort, yCliente);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.cliente?.cnpj || "-", col1X + colShort + 13, yCliente);
 
   doc.setFont(undefined, "bold");
-  doc.text("Razão Social:", col1X, yCliente + 2 * lineH);
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Tel:", col1X + colShort, yCliente + 6);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.razao_social || "-", col1X + 30, yCliente + 2 * lineH);
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.cliente?.tel || "-", col1X + colShort + 13, yCliente + 6);
 
   doc.setFont(undefined, "bold");
-  doc.text("Endereço:", col1X, yCliente + 3 * lineH);
+  doc.setFontSize(fontSizeLabel);
+  doc.text("CEP:", col1X + colShort, yCliente + 12);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.endereco || "-", col1X + 30, yCliente + 3 * lineH);
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.cliente?.cep || "-", col1X + colShort + 13, yCliente + 12);
 
   doc.setFont(undefined, "bold");
-  doc.text("Cidade:", col1X, yCliente + 4 * lineH);
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Bairro:", col1X + colShort, yCliente + 18);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.cidade || "-", col1X + 30, yCliente + 4 * lineH);
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.cliente?.bairro || "-", col1X + colShort + 13, yCliente + 18);
 
   doc.setFont(undefined, "bold");
-  doc.text("CEP:", col1X, yCliente + 5 * lineH);
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Cidade:", col1X, yCliente + 18);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.cep || "-", col1X + 30, yCliente + 5 * lineH);
-
-  // Cliente (direita da coluna esquerda)
-  doc.setFont(undefined, "bold");
-  doc.text("Tel:", col2X, yCliente);
-  doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.tel || "-", col2X + 15, yCliente);
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.cliente?.cidade || "-", col1X + 16, yCliente + 18);
 
   doc.setFont(undefined, "bold");
-  doc.text("Email:", col2X, yCliente + lineH);
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Estado:", col1X + colShort, yCliente + 24);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.email || "-", col2X + 15, yCliente + lineH);
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.cliente?.estado || "-", col1X + colShort + 13, yCliente + 24);
 
   doc.setFont(undefined, "bold");
-  doc.text("Bairro:", col2X, yCliente + 2 * lineH);
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Email:", col1X, yCliente + 24);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.bairro || "-", col2X + 15, yCliente + 2 * lineH);
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.cliente?.email || "-", col1X + 16, yCliente + 24, { maxWidth: colLong });
 
   doc.setFont(undefined, "bold");
-  doc.text("Estado:", col2X, yCliente + 3 * lineH);
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Contato:", col1X + colShort, yCliente + 30);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.estado || "-", col2X + 15, yCliente + 3 * lineH);
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.cliente?.contato || "-", col1X + colShort + 13, yCliente + 30);
+
+  // SEPARADOR VERTICAL
+  doc.setDrawColor(180);
+  doc.setLineWidth(0.5);
+  doc.line(col2X - 6, yCliente - 2, col2X - 6, yCliente + 34);
+
+  // AGÊNCIA
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Agência:", col2X, yCliente);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.agencia?.nome || "-", col2X + 16, yCliente, { maxWidth: colLong });
 
   doc.setFont(undefined, "bold");
-  doc.text("Nome Contato:", col2X, yCliente + 4 * lineH);
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Endereço:", col2X, yCliente + 6);
   doc.setFont(undefined, "normal");
-  doc.text(pedido.cliente?.contato || "-", col2X + 30, yCliente + 4 * lineH);
+  doc.setFontSize(fontSizeValue);
+  const endAgencia = splitEndereco(pedido.agencia?.endereco);
+  doc.text(endAgencia[0], col2X + 16, yCliente + 6, { maxWidth: colLong });
+  if (endAgencia[1]) doc.text(endAgencia[1], col2X + 16, yCliente + 10, { maxWidth: colLong });
 
-  // Divisória entre Cliente e Veículo
-  const divisoriaY = yCliente + 7 * lineH - 2;
+  // Campos curtos agência (alinhados à direita)
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("CNPJ:", col2X + colShort, yCliente);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.agencia?.cnpj || "-", col2X + colShort + 13, yCliente);
+
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Tel:", col2X + colShort, yCliente + 6);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.agencia?.tel || "-", col2X + colShort + 13, yCliente + 6);
+
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("CEP:", col2X + colShort, yCliente + 12);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.agencia?.cep || "-", col2X + colShort + 13, yCliente + 12);
+
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Bairro:", col2X + colShort, yCliente + 18);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.agencia?.bairro || "-", col2X + colShort + 13, yCliente + 18);
+
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Cidade:", col2X, yCliente + 18);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.agencia?.cidade || "-", col2X + 16, yCliente + 18);
+
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Estado:", col2X + colShort, yCliente + 24);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.agencia?.estado || "-", col2X + colShort + 13, yCliente + 24);
+
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Email:", col2X, yCliente + 24);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.agencia?.email || "-", col2X + 16, yCliente + 24, { maxWidth: colLong });
+
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
+  doc.text("Contato:", col2X + colShort, yCliente + 30);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.agencia?.contato || "-", col2X + colShort + 13, yCliente + 30);
+
+  // Linha separadora antes da tabela principal
   doc.setDrawColor(0);
   doc.setLineWidth(0.5);
-  doc.line(marginX, divisoriaY, pageW - marginX, divisoriaY);
-  doc.setLineWidth(0.1);
-
-  // --- Veículo (abaixo da divisória, alinhado à esquerda) ---
-  let yVeiculo = divisoriaY + 6;
-  doc.setFont(undefined, "bold");
-  doc.text("Veículo:", col1X, yVeiculo);
-  doc.setFont(undefined, "normal");
-  doc.text("Sobremidia Digital", col1X + 30, yVeiculo);
-
-  doc.setFont(undefined, "bold");
-  doc.text("CNPJ:", col1X, yVeiculo + lineH);
-  doc.setFont(undefined, "normal");
-  doc.text("53.385.130/0001-56", col1X + 30, yVeiculo + lineH);
-
-  doc.setFont(undefined, "bold");
-  doc.text("Razão Social:", col1X, yVeiculo + 2 * lineH);
-  doc.setFont(undefined, "normal");
-  doc.text("Sobremidia Digital Ltda", col1X + 30, yVeiculo + 2 * lineH);
-
-  doc.setFont(undefined, "bold");
-  doc.text("Endereço:", col1X, yVeiculo + 3 * lineH);
-  doc.setFont(undefined, "normal");
-  doc.text("RUA JOSÉ EUCLÍDES, 240 - FÁTIMA", col1X + 30, yVeiculo + 3 * lineH);
-
-  doc.setFont(undefined, "bold");
-  doc.text("Cidade:", col1X, yVeiculo + 4 * lineH);
-  doc.setFont(undefined, "normal");
-  doc.text("Fortaleza", col1X + 30, yVeiculo + 4 * lineH);
-
-  doc.setFont(undefined, "bold");
-  doc.text("CEP:", col1X, yVeiculo + 5 * lineH);
-  doc.setFont(undefined, "normal");
-  doc.text("60.040-520", col1X + 30, yVeiculo + 5 * lineH);
-
-  // --- Bloco campanha (direita, alinhado ao topo do veículo) ---
-  let campBoxY = yVeiculo;
-  doc.setFontSize(10);
-  doc.setFont(undefined, "bold");
-  doc.text("CAMPANHA:", col2X, campBoxY);
-  doc.setFont(undefined, "normal");
-  doc.text(pedido.campanha?.nome || "-", col2X + 25, campBoxY);
-
-  doc.setFont(undefined, "bold");
-  doc.text("CRIATIVO:", col2X, campBoxY + lineH);
-  doc.setFont(undefined, "normal");
-  doc.text(pedido.campanha?.criativo || "CLIENTE", col2X + 25, campBoxY + lineH);
-
-  doc.setFont(undefined, "bold");
-  doc.text("E-MAIL (ENVIO CHECKIN):", col2X, campBoxY + 2 * lineH);
-  doc.setFont(undefined, "normal");
-  doc.text(pedido.campanha?.email_checkin || "-", col2X + 50, campBoxY + 2 * lineH);
-
-  doc.setFont(undefined, "bold");
-  doc.text("OBS:", col2X, campBoxY + 3 * lineH);
-  doc.setFont(undefined, "normal");
-  doc.text(pedido.campanha?.obs || "-", col2X + 15, campBoxY + 3 * lineH);
+  doc.line(marginX, yCliente + 34, pageW - marginX, yCliente + 36);
+  doc.setLineWidth(0);
 
   // --- Agora, inicie a tabela após o maior Y entre o bloco campanha e o bloco veículo ---
-  let tableY = Math.max(campBoxY + 4 * lineH + 8, yVeiculo + 6 * lineH + 8);
+  let tableY = yCliente + 37;
 
   // --- Lógica de quebra de página para tabela e totais ---
   const pageH = doc.internal.pageSize.getHeight();
   const minBottomMargin = 20;
   const rowHeight = 9;
-  const colWidths = [10, 25, 70, 17, 17, 12, 12, 21, 22, 22, 22, 22];
+  const colWidths = [10, 25, 70, 17, 17, 12, 12, 23, 22, 22, 22, 22];
   const headers = [
     "Item", "Cidade", "Painel", "Início", "Fim", "Dias", "Telas", "Inserções/dia", "Inserções TOTAIS", "Valor Tabela", "Desconto", "Valor Total"
   ];
@@ -1095,7 +1166,8 @@ const createPDFPedidoInsercao = async (pedido) => {
   doc.setFontSize(9);
   doc.setTextColor(255);
 
-  // Calcul255 a altura máxim255 do cabeçalhxim255let headerLines = [];
+  // Calcul255 a altura máxim255 do cabeçalhxim255
+  let headerLines = [];
   let maxHeaderHeight = 0;
   for (let i = 0; i < colWidths.length; i++) {
     const lines = doc.splitTextToSize(headers[i], colWidths[i] - 2);
@@ -1124,9 +1196,13 @@ const createPDFPedidoInsercao = async (pedido) => {
 
   // Linhas da tabela com quebra de página
   let totalBruto = 0, totalDesconto = 0, totalLiquido = 0;
+  let pageNumber = 1;
   for (let idx = 0; idx < (pedido.itens?.length || 0); idx++) {
     if (yTable + rowHeight > pageH - minBottomMargin) {
+      // Adiciona número da página antes de criar nova página
+      addPageNumber(doc, pageW, pageH, marginX, pageNumber);
       doc.addPage();
+      pageNumber++;
       yTable = marginX;
       // Redesenha cabeçalho da tabela na nova página, com altura dinâmica
       x = marginX;
@@ -1202,7 +1278,9 @@ const createPDFPedidoInsercao = async (pedido) => {
 
   // Totais: ajuste para garantir que os valores aparecem corretamente
   if (yTable + rowHeight * 3 > pageH - minBottomMargin) {
+    addPageNumber(doc, pageW, pageH, marginX, pageNumber);
     doc.addPage();
+    pageNumber++;
     yTable = marginX + 10;
   }
 
@@ -1244,14 +1322,28 @@ const createPDFPedidoInsercao = async (pedido) => {
   const rodapeLargura = pageW - marginX * 2;
   const rodapeFont = 8.2;
 
+  // Função para garantir espaço antes de cada seção do rodapé
+  function ensureRodapeSpace(linesNeeded = 1, extraSpace = 0) {
+    const pageH = doc.internal.pageSize.getHeight();
+    // Cada linha do rodapé ocupa cerca de 4px, mais o extraSpace para título/separador
+    if (rodapeY + linesNeeded * 4 + extraSpace > pageH - 15) {
+      addPageNumber(doc, pageW, pageH, marginX, pageNumber);
+      doc.addPage();
+      pageNumber++;
+      rodapeY = marginX + 10; // topo da nova página, ajuste se quiser mais abaixo
+    }
+  }
+
   function rodapeSecao(titulo, texto) {
+    // Conta linhas que serão usadas
+    const lines = doc.splitTextToSize(texto, rodapeLargura);
+    ensureRodapeSpace(lines.length, 12); // 12px para título e separador
     doc.setFont(undefined, "bold");
     doc.setFontSize(rodapeFont);
     doc.text(`${titulo}:`, marginX, rodapeY, { maxWidth: rodapeLargura });
     doc.setFont(undefined, "normal");
     doc.setFontSize(5);
     rodapeY += 4;
-    const lines = doc.splitTextToSize(texto, rodapeLargura);
     lines.forEach(line => {
       doc.text(line, marginX, rodapeY);
       rodapeY += 4;
@@ -1283,8 +1375,12 @@ const createPDFPedidoInsercao = async (pedido) => {
     "Fica eleito o Foro da Comarca de Fortaleza para dirimir os problemas relacionados ao presente instrumento, com renúncia expressa a qualquer outro, por mais privilegiado que seja, para a solução de eventuais litígios e controvérsias."
   );
 
+  ensureRodapeSpace(2, 10); // Garante espaço para "Observações:"
   doc.setFont(undefined, "bold");
   doc.text("Observações:", marginX, rodapeY + 2);
+
+  // Adiciona número da última página ao final do PDF
+  addPageNumber(doc, pageW, pageH, marginX, pageNumber);
 
   return Buffer.from(doc.output("arraybuffer"));
 };
