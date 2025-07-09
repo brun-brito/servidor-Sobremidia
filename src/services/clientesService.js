@@ -17,6 +17,7 @@ exports.createCliente = async ({
     pessoa_contato,
     ins_municipal,
     agencia,
+    executivo_vendas
 }) => {
     if (!razao_social) throw new Error("O campo 'razão social' é obrigatório.");
     if (!cnpj) throw new Error("O campo 'CNPJ' é obrigatório.");
@@ -52,6 +53,7 @@ exports.createCliente = async ({
             pessoa_contato,
             ins_municipal,
             agencia,
+            executivo_vendas,
             criado_em: new Date(),
             atualizado_em: new Date(),
         });

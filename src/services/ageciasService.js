@@ -15,6 +15,7 @@ exports.createAgencia = async ({
     pessoa_contato,
     ins_municipal,
     clientes,
+    bairro,
 }) => {
     if (!razao_social) throw new Error("O campo 'razão social' é obrigatório.");
     if (!cnpj) throw new Error("O campo 'CNPJ' é obrigatório.");
@@ -51,6 +52,7 @@ exports.createAgencia = async ({
             clientes: clientesArray,
             criado_em: new Date(),
             atualizado_em: new Date(),
+            bairro,
         });
 
         // Update each cliente to point to this new agencia
