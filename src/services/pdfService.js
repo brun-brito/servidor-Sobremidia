@@ -757,7 +757,65 @@ const createPDFProposta = async (proposta) => {
     }
     doc.setFont(undefined, "normal");
     yTable += rowHeight;
-  
+
+    // --- Adiciona comissão e valor líquido, se houver comissão ---
+    const comissaoPercentual = parseFloat(proposta.comissao_agencia || "0");
+    const totalComissao = totalFinal * (comissaoPercentual / 100);
+    const totalLiquido = totalFinal - totalComissao;
+    if (comissaoPercentual > 0) {
+      // Mescla todas as colunas menos a última para o texto, e a última para o valor
+      const mergedWidth = colWidths.slice(0, -1).reduce((a, b) => a + b, 0);
+      const lastWidth = colWidths[colWidths.length - 1];
+
+      // --- Quebra de página se necessário para as duas linhas extras ---
+      const pageH = doc.internal.pageSize.getHeight();
+      const minBottomMargin = 20;
+      if (yTable + rowHeight * 2 > pageH - minBottomMargin) {
+        addPageNumber(doc, pageW, pageH, marginX, pageNumber);
+        doc.addPage();
+        pageNumber++;
+        yTable = marginX + 10; // ou outro valor adequado para o topo da nova página
+      }
+
+      // Linha: Comissão agência
+      x = marginX;
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      doc.rect(x, yTable, mergedWidth, rowHeight); // legenda
+      doc.rect(x + mergedWidth, yTable, lastWidth, rowHeight); // valor
+      doc.text(
+        `Comissão agência (${comissaoPercentual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%)`,
+        x + mergedWidth / 2,
+        yTable + 6,
+        { align: "center" }
+      );
+      doc.text(
+        `R$ ${totalComissao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+        x + mergedWidth + lastWidth / 2,
+        yTable + 6,
+        { align: "center" }
+      );
+      yTable += rowHeight;
+
+      // Linha: Valor Líquido
+      doc.rect(x, yTable, mergedWidth, rowHeight); // legenda
+      doc.rect(x + mergedWidth, yTable, lastWidth, rowHeight); // valor
+      doc.text(
+        "Valor Líquido",
+        x + mergedWidth / 2,
+        yTable + 6,
+        { align: "center" }
+      );
+      doc.text(
+        `R$ ${totalLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+        x + mergedWidth + lastWidth / 2,
+        yTable + 6,
+        { align: "center" }
+      );
+      yTable += rowHeight;
+    }
+
     // 1. NOVA PÁGINA DE PROJEÇÕES DE AUDIÊNCIA
     addPageNumber(doc, pageW, pageH, marginX, pageNumber);
     doc.addPage();
@@ -1195,7 +1253,7 @@ const createPDFPedidoInsercao = async (pedido) => {
   let yTable = tableY + maxHeaderHeight;
 
   // Linhas da tabela com quebra de página
-  let totalBruto = 0, totalDesconto = 0, totalLiquido = 0;
+  let totalBruto = 0, totalDesconto = 0, totalNegociado = 0;
   let pageNumber = 1;
   for (let idx = 0; idx < (pedido.itens?.length || 0); idx++) {
     if (yTable + rowHeight > pageH - minBottomMargin) {
@@ -1230,7 +1288,7 @@ const createPDFPedidoInsercao = async (pedido) => {
     const valorTotal = parseFloat(item.valor_total || "0");
     totalBruto += valorTabela;
     totalDesconto += (valorTabela - valorTotal);
-    totalLiquido += valorTotal;
+    totalNegociado += valorTotal;
 
     // Monta a célula de valor total igual à proposta
     const valorTotalCell = item.bonificado
@@ -1276,19 +1334,32 @@ const createPDFPedidoInsercao = async (pedido) => {
     yTable += thisRowHeight;
   }
 
+  // Comissão agência percentual e valor
+  const comissaoPercentual = parseFloat(pedido.comissao_agencia || "0");
+  const totalComissao = totalNegociado * (comissaoPercentual / 100);
+  const totalLiquido = totalNegociado - totalComissao;
+
   // Totais: ajuste para garantir que os valores aparecem corretamente
-  if (yTable + rowHeight * 3 > pageH - minBottomMargin) {
+  if (yTable + rowHeight * 5 > pageH - minBottomMargin) {
     addPageNumber(doc, pageW, pageH, marginX, pageNumber);
     doc.addPage();
     pageNumber++;
     yTable = marginX + 10;
   }
 
-  // Adiciona as linhas de totais nas últimas 3 colunas
-  const totalLabels = ["Valor Bruto:", "Desconto adicional:", "Valor Líquido:"];
+  // Adiciona as linhas de totais nas últimas 5 colunas
+  const totalLabels = [
+    "Valor Bruto:",
+    "Desconto adicional:",
+    "Valor Negociado:",
+    `Comissão agência (${comissaoPercentual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%):`,
+    "Valor Líquido:"
+  ];
   const totalValues = [
     `R$ ${totalBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
     `R$ ${totalDesconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+    `R$ ${totalNegociado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+    `R$ ${totalComissao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
     `R$ ${totalLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
   ];
 
@@ -1297,15 +1368,13 @@ const createPDFPedidoInsercao = async (pedido) => {
   const widthLegenda = colWidths[colWidths.length - 3] + colWidths[colWidths.length - 2];
   const widthValor = colWidths[colWidths.length - 1];
 
-  for (let i = 0; i < 3; i++) {
-    // Mescla as duas primeiras células para a legenda
+  for (let i = 0; i < totalLabels.length; i++) {
     doc.setFillColor(35, 213, 99);
     doc.setFont(undefined, "bold");
     doc.setTextColor(255);
     doc.rect(xTotais, yTable + i * rowHeight, widthLegenda, rowHeight, 'F');
     doc.text(totalLabels[i], xTotais + 2, yTable + 6 + i * rowHeight, { align: "left" });
 
-    // Valor na última coluna
     doc.setFillColor(35, 213, 99);
     doc.rect(xTotais + widthLegenda, yTable + i * rowHeight, widthValor, rowHeight, 'F');
     doc.text(
