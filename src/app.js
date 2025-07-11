@@ -15,6 +15,7 @@ const clientesRoute = require("./routes/clientes");
 const agenciasRoute = require("./routes/agencias");
 const propostaRoute = require("./routes/proposta");
 const executivosRoute = require("./routes/executivos");
+const { initFirebase } = require("./config/firebase");
 const PORT = process.env.PORT || 3000;
 const app = express();
 const session = require("express-session");
@@ -34,6 +35,17 @@ app.use(session({
         secure: false,
     }
   }));
+
+// Middleware para inicializar o Firebase conforme o IP
+app.use((req, res, next) => {
+    try {
+        initFirebase(req);
+    } catch (e) {
+        console.error("Erro ao inicializar Firebase:", e);
+        return res.status(500).send("Erro ao inicializar Firebase");
+    }
+    next();
+});
 
 // Middleware para JSON
 app.use(express.json({ limit: "50mb" }));
