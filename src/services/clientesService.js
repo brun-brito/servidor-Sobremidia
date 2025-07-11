@@ -1,4 +1,4 @@
-const { db, auth } = require("../config/firebase");
+const { getDb } = require("../config/firebase");
 
 const COLLECTION_NAME = "clientes";
 const AGENCIAS_COLLECTION = "agencias";
@@ -29,6 +29,7 @@ exports.createCliente = async ({
     if (!email) throw new Error("O campo 'email' é obrigatório.");
     if (!pessoa_contato) throw new Error("O campo 'pessoa de contato' é obrigatório.");
 
+    const db = getDb();
     if (agencia) {
         const agenciaRef = db.collection(AGENCIAS_COLLECTION).doc(agencia);
         const agenciaSnap = await agenciaRef.get();
@@ -79,6 +80,7 @@ exports.createCliente = async ({
 
 exports.listClientes = async () => {
     try {
+        const db = getDb();
         const snapshot = await db.collection(COLLECTION_NAME).get();
         return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
@@ -88,6 +90,7 @@ exports.listClientes = async () => {
 
 exports.getClienteById = async (id) => {
     try {
+        const db = getDb();
         const userRef = db.collection(COLLECTION_NAME).doc(id);
         const user = await userRef.get();
         if (!user.exists) {
@@ -101,6 +104,7 @@ exports.getClienteById = async (id) => {
 
 exports.updateCliente = async (id, data) => {
     try {
+        const db = getDb();
         const userRef = db.collection(COLLECTION_NAME).doc(id);
         const user = await userRef.get();
         if (!user.exists) {
@@ -153,6 +157,7 @@ exports.updateCliente = async (id, data) => {
 
 exports.deleteCliente = async (id) => {
     try {
+        const db = getDb();
         const userRef = db.collection(COLLECTION_NAME).doc(id);
         const userDoc = await userRef.get();
         if (!userDoc.exists) {

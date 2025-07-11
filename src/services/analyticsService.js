@@ -2,7 +2,7 @@ const { loginAndExtractToken } = require('../services/tokenService');
 const  reportService = require("../services/reportService");
 const axios = require('axios');
 const API_URL = 'https://analytics.4yousee.com/django/legacy/api/concurrent_dash_data/308/';
-const { db } = require("../config/firebase");
+const { getDb } = require("../config/firebase");
 const https = require("https");
 
 exports.fetchAnalyticsData = async (startDate, endDate, input) => {
@@ -49,6 +49,7 @@ async function resolveLocations(locations) {
   console.log("📌 [resolveLocations] IDs recebidos:", locations);
 
   try {
+    const db = getDb();
     const snapshot = await db
       .collection("paineis")
       .get();
@@ -84,6 +85,7 @@ async function resolveLocations(locations) {
 
 async function getReport(reportId) {
   try {
+    const db = getDb();
     const reportRef = db.collection("relatorios").doc(reportId);
     const reportApi = await reportRef.get();
 

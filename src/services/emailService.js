@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer');
 const juice = require('juice');
 require('dotenv').config();
 const pdf = require('../services/pdfService');
-const { db } = require("../config/firebase");
+const { getDb } = require("../config/firebase");
 
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -56,6 +56,7 @@ async function sendMailCheckin(nameClient, emailId, mailClient, mailSeller, pass
     }
     
     try {
+        const db = getDb();
         console.log(`[INFO] Enviando e-mail para ${mailClient}, ${mailSeller}`);
 
         await db.collection("emails").doc(emailId).update({ status: "em andamento" });
@@ -70,6 +71,7 @@ async function sendMailCheckin(nameClient, emailId, mailClient, mailSeller, pass
 
         // Tentar enviar novamente SEM o attachment
         try {
+            const db = getDb();
             console.log(`[INFO] Tentando reenviar e-mail sem anexo para ID: ${emailId}...`);
             const mailOptionsWithoutAttachment = { ...mailOptions, attachments: [] };
 
@@ -82,6 +84,7 @@ async function sendMailCheckin(nameClient, emailId, mailClient, mailSeller, pass
             console.log(`[SUCCESS] E-mail reenviado sem anexo para ID: ${emailId}`);
             return infoWithoutAttachment;
         } catch (errorRetry) {
+            const db = getDb();
             console.error(`[ERROR] Falha ao reenviar e-mail sem anexo para ID: ${emailId}:`, errorRetry.message);
             await db.collection("emails").doc(emailId).update({
                 status: "erro",

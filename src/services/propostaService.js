@@ -1,4 +1,4 @@
-const { db } = require("../config/firebase");
+const { getDb } = require("../config/firebase");
 
 const COLLECTION_NAME = "propostas";
 
@@ -43,6 +43,7 @@ exports.createProposta = async (dados) => {
     const mes = String(now.getMonth() + 1).padStart(2, '0');
     const prefixo = `${ano}${mes}`;
 
+    const db = getDb();
     const snapshot = await db.collection(COLLECTION_NAME)
         .where('numero_pi', '>=', `${prefixo}0000`)
         .where('numero_pi', '<', `${prefixo}9999`)
@@ -85,11 +86,13 @@ exports.createProposta = async (dados) => {
 };
 
 exports.listPropostas = async () => {
+    const db = getDb();
     const snapshot = await db.collection(COLLECTION_NAME).get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 exports.getPropostaById = async (id) => {
+    const db = getDb();
     const ref = db.collection(COLLECTION_NAME).doc(id);
     const doc = await ref.get();
     if (!doc.exists) {
@@ -99,6 +102,7 @@ exports.getPropostaById = async (id) => {
 };
 
 exports.updateProposta = async (id, dados) => {
+    const db = getDb();
     const ref = db.collection(COLLECTION_NAME).doc(id);
     const doc = await ref.get();
     if (!doc.exists) {
@@ -110,6 +114,7 @@ exports.updateProposta = async (id, dados) => {
 };
 
 exports.deleteProposta = async (id) => {
+    const db = getDb();
     const ref = db.collection(COLLECTION_NAME).doc(id);
     const doc = await ref.get();
     if (!doc.exists) {

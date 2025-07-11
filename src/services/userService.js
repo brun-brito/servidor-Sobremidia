@@ -1,4 +1,4 @@
-const { db, auth } = require("../config/firebase");
+const { getDb, getAuth } = require("../config/firebase");
 
 const COLLECTION_NAME = "usuarios";
 
@@ -8,6 +8,8 @@ exports.createUserService = async({ nome, email, senha, funcao }) => {
   }
 
   try {
+    const db = getDb();
+    const auth = getAuth();
     const userRecord = await auth.createUser({ email, password: senha });
 
     await db.collection(COLLECTION_NAME).doc(userRecord.uid).set({ nome, email, funcao });
@@ -33,6 +35,7 @@ exports.createUserService = async({ nome, email, senha, funcao }) => {
 }
 
 exports.listUsersService = async(email) => {
+  const db = getDb();
   let query = db.collection(COLLECTION_NAME);
   if (email) {
     query = query.where("email", "==", email);
@@ -42,6 +45,7 @@ exports.listUsersService = async(email) => {
 }
 
 exports.getUserByIdService = async(id) => {
+  const db = getDb();
   const userRef = db.collection(COLLECTION_NAME).doc(id);
   const user = await userRef.get();
 
@@ -55,11 +59,15 @@ exports.getUserByIdService = async(id) => {
 }
 
 exports.updateUserService = async(id, { nome, email, funcao }) => {
+  const db = getDb();
+  const auth = getAuth();
   await auth.updateUser(id, { email });
   await db.collection(COLLECTION_NAME).doc(id).update({ nome, email, funcao });
 }
 
 exports.deleteUserService = async(id) => {
+  const db = getDb();
+  const auth = getAuth();
   const userRef = db.collection(COLLECTION_NAME).doc(id);
   const userDoc = await userRef.get();
 

@@ -1,13 +1,15 @@
-const { db } = require("../config/firebase");
+const { getDb } = require("../config/firebase");
 
 const COLLECTION_PATH = "paineis";
 
 exports.listarPaineisService = async () => {
+  const db = getDb();
   const snapshot = await db.collection(COLLECTION_PATH).get();
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 exports.obterPainelPorIdService = async (id) => {
+  const db = getDb();
   const ref = db.collection(COLLECTION_PATH).doc(id);
   const doc = await ref.get();
 
@@ -27,6 +29,7 @@ exports.criarPainelService = async (dados) => {
     const painelId = match ? match[1].trim() : String(dados.idManager);
 
     // Verifica se já existe um painel com esse id
+    const db = getDb();
     const ref = db.collection(COLLECTION_PATH).doc(painelId);
     const doc = await ref.get();
     if (doc.exists) {
@@ -55,6 +58,7 @@ exports.criarPainelService = async (dados) => {
 };
 
 exports.atualizarPainelService = async (id, dados) => {
+  const db = getDb();
   const ref = db.collection(COLLECTION_PATH).doc(id);
   const doc = await ref.get();
 
@@ -80,6 +84,7 @@ exports.atualizarPainelService = async (id, dados) => {
 };
 
 exports.excluirPainelService = async (id) => {
+  const db = getDb();
   const ref = db.collection(COLLECTION_PATH).doc(id);
   const doc = await ref.get();
 

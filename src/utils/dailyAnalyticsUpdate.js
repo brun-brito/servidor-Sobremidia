@@ -1,11 +1,12 @@
 const axios = require("axios");
 const { loginAndExtractToken } = require("../services/tokenService");
-const { db } = require("../config/firebase");
+const { getDb } = require("../config/firebase");
 const API_URL = "https://analytics.4yousee.com/django/legacy/api/concurrent_dash_data/308/";
 const moment = require("moment-timezone");
 const https = require("https");
 
 exports.updateDailyAnalytics = async () => {
+  const db = getDb();
   const logRef = db.collection("analytics").doc("logs").collection("updates");
   const updateTime = moment().tz("America/Sao_Paulo");
   const formattedDate = moment()

@@ -1,5 +1,5 @@
 const checkinService = require("../services/checkinService");
-const { db }= require("../config/firebase");
+const { getDb } = require("../config/firebase");
 const moment = require("moment");
 require("moment/locale/pt-br"); 
   
@@ -25,6 +25,7 @@ exports.getCheckIns = async (req, res) => {
 
 exports.getCheckinById = async (req, res) => {
     try {
+        const db = getDb();
         const checkinRef = db.collection("checkin").doc(req.params.id);
         const doc = await checkinRef.get();
   

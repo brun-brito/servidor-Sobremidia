@@ -1,8 +1,9 @@
 const emailService = require("../services/emailService");
-const { db } = require("../config/firebase");
+const { getDb } = require("../config/firebase");
 const pdf = require('../services/pdfService');
 
 exports.handleSendMailCheckin = async (req, res) => {
+    const db = getDb();
     const { nameClient, mailClient, mailSeller, checkIn } = req.body;
     
     if (!nameClient || !mailClient || !checkIn || !mailSeller) {
@@ -36,6 +37,7 @@ exports.handleSendMailCheckin = async (req, res) => {
 
 async function processEmailSend(nameClient, emailId, mailClient, mailSeller, checkIns) {
     try {
+        const db = getDb();
         console.log(`[INFO] Processando envio de e-mail para ID: ${emailId} com ${checkIns.length} check-ins`);
 
         const checkinDocs = await Promise.all(
@@ -91,6 +93,7 @@ exports.checkEmailStatus = async (req, res) => {
     }
 
     try {
+        const db = getDb();
         const emailDoc = await db.collection("emails").doc(emailId).get();
 
         if (!emailDoc.exists) {
@@ -118,6 +121,7 @@ exports.handleSendMailReport = async(req, res) => {
     }
 
     try {
+        const db = getDb();
         const reportRef = db.collection("relatorios").doc(reportId);
         const reportDoc = await reportRef.get();
 

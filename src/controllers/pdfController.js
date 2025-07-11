@@ -1,6 +1,6 @@
 const { createPDFRelatorio, createPDFCheckin, createPDFMidiasAtivas, createPDFProposta, createPDFPedidoInsercao } = require("../services/pdfService");
 const { downloadAndProcessReport } = require("../services/reportService")
-const { db }= require("../config/firebase");
+const { getDb } = require("../config/firebase");
 
 const generatePDFProposta = async (req, res) => {
   try {
@@ -24,6 +24,7 @@ const generatePDFRelatorio = async (req, res) => {
             return res.status(400).json({ success: false, message: "ID do relatório é obrigatório." });
         }
 
+        const db = getDb();
         const reportRef = db.collection("relatorios").doc(reportId);
         const doc = await reportRef.get();
 

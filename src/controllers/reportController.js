@@ -2,12 +2,13 @@ const  reportService = require("../services/reportService");
 const analyticsService = require("../services/analyticsService");
 const { generateScriptAnalytics } = require("../utils/analyticsChart");
 const { listarPaineisService } = require("../services/paineisService")
-const { db } = require("../config/firebase");
+const { getDb } = require("../config/firebase");
 const { BASE_URL, SECRET_TOKEN1, SECRET_TOKEN2 } = require("../config");
 const moment = require('moment');   
 
 async function displayReport(req, res) {
     try {
+        const db = getDb();
         const reportId = req.params.reportId;
         const reportRef = db.collection("relatorios").doc(reportId);
         const reportApi = await reportRef.get();
@@ -1091,6 +1092,7 @@ exports.handleProtectedHtmlPost = async(req, res) => {
     const { password } = req.body;
   
     try {
+        const db = getDb();
         const reportRef = db.collection("relatorios").doc(reportId);
         const reportData = await reportRef.get();
   

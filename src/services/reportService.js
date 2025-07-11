@@ -2,9 +2,10 @@ const axios = require("axios");
 const pako = require("pako");
 const { SECRET_TOKEN1, SECRET_TOKEN2, BASE_URL } = require("../config");
 const analyzeLogs = require("../utils/analyzeLogs");
-const { db }= require("../config/firebase");
+const { getDb } = require("../config/firebase");
 
 async function generateReport(req, res) {
+    const db = getDb();
     const { startDate, startTime, endDate, endTime, mediaId, playerId, clientes, user } = req.body;
 
     const requestBody = {
@@ -63,6 +64,7 @@ async function generateReport(req, res) {
 }
 
 async function processReport(reportId) {
+    const db = getDb();
     console.log(`[INFO] Iniciando monitoramento do relatório: ${reportId}`);
 
     try {
@@ -127,6 +129,7 @@ async function checkReportStatus(reportId) {
 }
 
 async function getReportStatus(req, res) {
+    const db = getDb();
     const { reportId } = req.params;
 
     try {
@@ -154,6 +157,7 @@ async function getReportStatus(req, res) {
 }
 
 async function getReportResult(req, res) {
+    const db = getDb();
     const { reportId } = req.params;
 
     try {

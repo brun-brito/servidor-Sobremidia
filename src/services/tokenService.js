@@ -2,9 +2,10 @@ const USER_MAIL = process.env.ANALYTICS_USER_MAIL;
 const PASSWORD = process.env.ANALYTICS_PASSWORD;
 const API_URL = 'https://analytics.4yousee.com/django';
 const axios = require('axios');
-const { db } = require("../config/firebase");
+const { getDb } = require("../config/firebase");
 
 exports.loginAndExtractToken = async () => {
+  const db = getDb();
   const tokenRef = db.collection('token').doc('atual');
   const doc = await tokenRef.get();
 

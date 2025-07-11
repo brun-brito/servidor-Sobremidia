@@ -1,4 +1,4 @@
-const { db, bucket } = require("../config/firebase");
+const { getDb, getBucket, getProjectId } = require("../config/firebase");
 const { FieldValue } = require("firebase-admin/firestore");
 const fs = require('fs');
 const path = require('path');
@@ -26,13 +26,14 @@ exports.createCheckinService = async (data) => {
       user: data.user,
       senha: Math.random().toString(36).slice(-5),
     };
-    
+    const db = getDb();
     const docRef = await db.collection('checkin').add(checkinData);
     return { message: 'Check-in criado com sucesso!', id: docRef.id };
 }
 
 exports.getCheckIns = async () => {
     try {
+        const db = getDb();
         const snapshot = await db.collection("checkin").get();
 
         if (snapshot.empty) {
@@ -83,7 +84,9 @@ exports.uploadPhoto = (req) => {
 
       const timestamp = Date.now();
       const filePath = `checkin/${fields.checkinId}/${timestamp}_${fields.originalName}`;
+      const bucket = getBucket();
       const fileRef = bucket.file(filePath);
+      const projectId = getProjectId();
 
       try {
         await fileRef.save(finalBuffer, {
@@ -92,7 +95,7 @@ exports.uploadPhoto = (req) => {
         });
 
         await fileRef.makePublic();
-        const url = `https://storage.googleapis.com/sobremidia-ce.firebasestorage.app/${filePath}`;
+        const url = `https://storage.googleapis.com/${projectId}.firebasestorage.app/${filePath}`;
 
         resolve(url);
       } catch (error) {
@@ -169,8 +172,10 @@ exports.uploadChunk = (req) => {
           });
 
           const fileName = `checkin/${checkinId}/${Date.now()}_${originalName}`;
+          const bucket = getBucket();
           const fileRef = bucket.file(fileName);
           const finalFileBuffer = fs.readFileSync(finalFilePath);
+          const projectId = getProjectId();
           await fileRef.save(finalFileBuffer, {
             metadata: { contentType: "video/mp4" },
             resumable: false,
@@ -181,7 +186,7 @@ exports.uploadChunk = (req) => {
 
           resolve({
             message: "Upload completo e vídeo armazenado com sucesso!",
-            url: `https://storage.googleapis.com/sobremidia-ce.firebasestorage.app/${fileName}`,
+            url: `https://storage.googleapis.com/${projectId}.firebasestorage.app/${fileName}`,
           });
         } else {
           resolve({ message: `Chunk ${chunkIndexNum} recebido.` });
@@ -196,6 +201,7 @@ exports.uploadChunk = (req) => {
 };
 
 exports.getCheckinsByIds = async (checkinIds) => {
+  const db = getDb();
   console.log(`[INFO] Buscando check-ins para os IDs: ${checkinIds.join(", ")}`);
 
   const checkinDocs = await Promise.all(
@@ -208,6 +214,7 @@ exports.getCheckinsByIds = async (checkinIds) => {
 };
 
 exports.validatePassword = async (checkinId, password) => {
+  const db = getDb();
   const checkinRef = db.collection("checkin").doc(checkinId);
   const checkinDoc = await checkinRef.get();
 
@@ -234,6 +241,7 @@ async function deleteMediaFromStorage(mediaLinks) {
 
           const filePath = match[1].split("?")[0];
 
+          const bucket = getBucket();
           await bucket.file(filePath).delete();
           console.log(`Arquivo removido com sucesso: ${filePath}`);
       } catch (error) {
@@ -245,6 +253,7 @@ async function deleteMediaFromStorage(mediaLinks) {
 }
 
 exports.deleteCheckin = async(checkinId) => {
+  const db = getDb();
   const checkinRef = db.collection("checkin").doc(checkinId);
   const checkinDoc = await checkinRef.get();
 
