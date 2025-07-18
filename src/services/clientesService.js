@@ -17,17 +17,18 @@ exports.createCliente = async ({
     pessoa_contato,
     ins_municipal,
     agencia,
-    executivo_vendas
+    executivo_vendas,
+    idManager
 }) => {
-    if (!razao_social) throw new Error("O campo 'razão social' é obrigatório.");
-    if (!cnpj) throw new Error("O campo 'CNPJ' é obrigatório.");
-    if (!telefone) throw new Error("O campo 'telefone' é obrigatório.");
-    if (!endereco) throw new Error("O campo 'endereço' é obrigatório.");
-    if (!cidade) throw new Error("O campo 'cidade' é obrigatório.");
-    if (!uf) throw new Error("O campo 'UF' é obrigatório.");
-    if (!cep) throw new Error("O campo 'CEP' é obrigatório.");
-    if (!email) throw new Error("O campo 'email' é obrigatório.");
-    if (!pessoa_contato) throw new Error("O campo 'pessoa de contato' é obrigatório.");
+    // if (!razao_social) throw new Error("O campo 'razão social' é obrigatório.");
+    // if (!cnpj) throw new Error("O campo 'CNPJ' é obrigatório.");
+    // if (!telefone) throw new Error("O campo 'telefone' é obrigatório.");
+    // if (!endereco) throw new Error("O campo 'endereço' é obrigatório.");
+    // if (!cidade) throw new Error("O campo 'cidade' é obrigatório.");
+    // if (!uf) throw new Error("O campo 'UF' é obrigatório.");
+    // if (!cep) throw new Error("O campo 'CEP' é obrigatório.");
+    // if (!email) throw new Error("O campo 'email' é obrigatório.");
+    // if (!pessoa_contato) throw new Error("O campo 'pessoa de contato' é obrigatório.");
 
     const db = getDb();
     if (agencia) {
@@ -55,6 +56,7 @@ exports.createCliente = async ({
             ins_municipal,
             agencia,
             executivo_vendas,
+            idManager,
             criado_em: new Date(),
             atualizado_em: new Date(),
         });
