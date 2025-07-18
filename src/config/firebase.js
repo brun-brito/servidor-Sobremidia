@@ -22,8 +22,8 @@ function isLocalRequest(req) {
     }
   }
 
-  // Considera DEV se host for 127.0.0.1 ou localhost
-  if (host && (host.startsWith('127.0.0.1') || host.startsWith('localhost'))) {
+  // Considera DEV se host for 127.0.0.1. Se quiser usar os dados de PROD, é preciso reiniciar a aplicação e a primeira requisição ser feita com localhost.
+  if (host && host.startsWith('127.0.0.1')) {
     return true;
   }
 
