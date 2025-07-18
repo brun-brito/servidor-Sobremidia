@@ -14,6 +14,16 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+function sanitizeEmails(emails) {
+    if (Array.isArray(emails)) {
+        return emails.map(e => e.trim()).filter(e => !!e);
+    }
+    if (typeof emails === "string") {
+        return emails.split(",").map(e => e.trim()).filter(e => !!e);
+    }
+    return [];
+}
+
 async function sendMailCheckin(nameClient, emailId, mailClient, mailSeller, password, checkins, pdfBuffer) {
     const checkinIds = checkins.map(checkin => checkin.id).join("&");
     const reportLink = `https://us-central1-sobremidia-ce.cloudfunctions.net/v1/checkin/html/${checkinIds}`;
@@ -47,7 +57,7 @@ async function sendMailCheckin(nameClient, emailId, mailClient, mailSeller, pass
     
         const mailOptions = {
         from: `"OPEC | Sobremídia" <${process.env.MAIL_SENDER}>`,
-        to: [mailClient, mailSeller],
+        to: sanitizeEmails([mailClient, mailSeller]),
         subject: "Relatório de checkin",
         html: inlineHtml,
         // attachments: pdfBuffer
@@ -137,7 +147,7 @@ async function sendMailReport(nameClient, mailClient, mailSeller, reportId, pass
 
     const mailOptions = {
         from: `"OPEC | Sobremídia" <${process.env.MAIL_SENDER}>`,
-        to: [mailClient, mailSeller],
+        to: sanitizeEmails([mailClient, mailSeller]),
         subject: "Relatório de Inserções - Acesso",
         html: inlineHtml,
         // attachments: sendWithoutPDF
@@ -167,7 +177,7 @@ async function sendMailWarning(report){
 
     const mailOptions = {
         from: `"OPEC | Sobremídia" <${process.env.MAIL_SENDER}>`,
-        to: ["brunocaudebrito@gmail.com","opec@sobremidia.com"],
+        to: sanitizeEmails(["brunocaudebrito@gmail.com","opec@sobremidia.com"]),
         subject: "Relatório de Mídias com menos de 510 inserções",
         html: inlineHtml,
     }
