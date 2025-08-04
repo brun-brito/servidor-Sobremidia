@@ -17,6 +17,7 @@ const propostaRoute = require("./routes/proposta");
 const executivosRoute = require("./routes/executivos");
 const rolesRouter = require("./routes/roles");
 const verificaEmailRoute = require("./routes/verifica-email");
+const footballRoute = require("./routes/football");
 const { initFirebase } = require("./config/firebase");
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -72,5 +73,6 @@ app.use("/propostas", propostaRoute);
 app.use("/executivos", executivosRoute);
 app.use("/roles", rolesRouter);
 app.use("/verifica-email", verificaEmailRoute);
+app.use("/football", footballRoute);
 
 module.exports = app;
