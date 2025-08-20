@@ -81,7 +81,7 @@ const createPDFRelatorio = async (data) => {
     const footerBase64 = await loadImageAsBase64(path.join(__dirname, "../assets/fotos/fotoFooter.png"));
 
     let yOffset = contentStartY + 10;
-    const reportDate = moment().format("DD/MM/YYYY, HH:mm:ss");
+    const reportDate = moment().utcOffset('-03:00').format("DD/MM/YYYY, HH:mm:ss");
 
     if (headerBase64 && footerBase64) {
         addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
@@ -235,225 +235,266 @@ Total de Painéis: ${summary.totalPlayers || 0}
 };
 
 const createPDFCheckin = async (checkIns) => {
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    // console.log("CHECKIN ENVIADO",checkIn);
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  // console.log("CHECKIN ENVIADO",checkIn);
 
-    const headerBase64 = await loadImageAsBase64(path.join(__dirname, "../assets/fotos/fotoHeader.png"));
-    const footerBase64 = await loadImageAsBase64(path.join(__dirname, "../assets/fotos/fotoFooter.png"));
+  const headerBase64 = await loadImageAsBase64(path.join(__dirname, "../assets/fotos/fotoHeader.png"));
+  const footerBase64 = await loadImageAsBase64(path.join(__dirname, "../assets/fotos/fotoFooter.png"));
 
-    let yOffset = contentStartY + 10;
-    const imgWidth = 80;
-    const imgHeight = 60;
-    const colSpacing = 10;
-    const startX = 15;
-    let column = 0;
-    const reportDate = moment().format("DD/MM/YYYY, HH:mm:ss");
-    
-    for (let i = 0; i < checkIns.length; i++) {
-        const checkIn = checkIns[i];
+  let yOffset = contentStartY + 10;
+  const imgWidth = 80;
+  const imgHeight = 60;
+  const colSpacing = 10;
+  const startX = 15;
+  let column = 0;
+  const reportDate = moment().utcOffset('-03:00').format("DD/MM/YYYY, HH:mm:ss");
+  
+  for (let i = 0; i < checkIns.length; i++) {
+    const checkIn = checkIns[i];
 
-        if (i > 0) {
-            doc.addPage();
-            yOffset = contentStartY + 10;
-        }
-
-        if (headerBase64 && footerBase64) {
-            addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-        }
-
-        doc.setFontSize(16);
-        doc.text("Relatório de Check-In de Mídias", 10, yOffset);
-        yOffset += 7;
-        doc.setFontSize(10);
-        doc.text(`Gerado em: ${reportDate}`, 10, yOffset);
-        yOffset += 7;
-
-        doc.setDrawColor(0);
-        doc.setLineWidth(0.5);
-        doc.line(10, yOffset, pageWidth - 10, yOffset);
-        yOffset += 7;
-
-        doc.setFontSize(12);
-        doc.text(`Painel: ${checkIn.panelName}`, 15, yOffset);
-        yOffset += 7;
-        
-        const createdAt = checkIn.createdAt?._seconds
-        ? moment.unix(checkIn.createdAt._seconds).format("DD/MM/YYYY HH:mm:ss")
-        : "Data desconhecida";
-        doc.text(`Data: ${createdAt}`, 15, yOffset);
-        yOffset += 7;
-        doc.text(`Mídia: ${checkIn.midias[0].nomeMidia || checkIn.midias[0].idMidia}`, 15, yOffset);
-        yOffset += 7;
-        doc.text(`Cliente: ${checkIn.midias[0].cliente || "-"}`, 15, yOffset);
-        yOffset += 8;
-
-        doc.setDrawColor(180);
-        doc.setLineWidth(0.5);
-        doc.line(10, yOffset, pageWidth - 10, yOffset);
-        yOffset += 7;
-        doc.setDrawColor(0);
-
-        const media = checkIn.midias[0];
-
-        // Preview da Mídia
-        doc.setFillColor(230, 230, 230);
-        doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Preview da Mídia", pageWidth / 2, yOffset, { align: "center" });
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        yOffset += 12;
-        column = 0;
-
-        if (media.idMidia) {
-            const thumbnailUrl = `${BASE_THUMBNAIL_URL}${media.idMidia}.png`;
-            const base64Thumb = await loadImageAsBase64(thumbnailUrl);
-        
-            if (base64Thumb) {
-                doc.addImage(base64Thumb, "JPEG", 15, yOffset, 40, 30);
-            } else {
-                console.warn("Thumbnail não carregada:", media.idMidia);
-            }
-        }
-        yOffset += 40;
-
-        // Fotos da Mídia
-        if (media.fotosMidia.length > 0) {
-            doc.setFillColor(230, 230, 230);
-            doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
-            doc.text("Fotos da Mídia", pageWidth / 2, yOffset, { align: "center" });
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            yOffset += 12;
-            let index = 1;
-
-            for (const foto of media.fotosMidia) {
-                if (yOffset + imgHeight > contentEndY) {
-                    doc.addPage();
-                    addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-                    yOffset = contentStartY + 10;
-                    column = 0;
-                }
-
-                const xPosition = startX + (column * (imgWidth + colSpacing));
-
-                try {
-                    const mediaUrl = foto.url;
-                    const base64Media = await loadImageAsBase64(mediaUrl);
-                    if (base64Media) {
-                        doc.setFontSize(12);
-                        doc.text(`${index})`, xPosition - 3, yOffset + 3);
-                        doc.addImage(base64Media, "JPEG", xPosition + 5, yOffset, imgWidth, imgHeight);
-                        doc.setFontSize(10);
-                        doc.text(`Tirada em: ${moment(foto.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, xPosition + 5, yOffset + imgHeight + 5);                } else {
-                        console.warn("Erro ao carregar imagem da mídia:", foto.url);
-                    }
-                } catch (error) {
-                    console.warn("Erro ao carregar imagem da mídia:", error);
-                }
-
-                column++;
-                index++;
-
-                if (column >= 2) {
-                    column = 0;
-                    yOffset += imgHeight + 20;
-                }
-            }
-        }
-
-        // Fotos Entorno
-        if (media.fotosEntorno.length > 0) {
-            doc.addPage();
-            addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-            yOffset = contentStartY + 10;
-            doc.setFillColor(230, 230, 230);
-            doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
-            doc.text("Fotos do Entorno", pageWidth / 2, yOffset, { align: "center" });
-            doc.setFont("helvetica", "normal");
-            yOffset += 12;
-            column = 0;
-            index = 1;
-
-            for (const foto of media.fotosEntorno) {
-                if (yOffset + 80 > contentEndY) {
-                    doc.addPage();
-                    addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-                    yOffset = contentStartY + 10;
-                    column = 0;
-                }
-
-                const xPosition = startX + (column * (imgWidth + colSpacing));
-
-                try {
-                    const entornoUrl = foto.url;
-                    const base64Entorno = await loadImageAsBase64(entornoUrl);
-                    doc.setFontSize(12);
-                    doc.text(`${index})`, xPosition - 3, yOffset + 3);
-                    doc.addImage(base64Entorno, "JPEG", xPosition + 5, yOffset, imgWidth, imgHeight);
-                    doc.setFontSize(10);
-                        doc.text(`Tirada em: ${moment(foto.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, xPosition + 5, yOffset + imgHeight + 5);            } catch (error) {
-                    console.warn("Erro ao carregar imagem do entorno:", error);
-                }
-                column++;
-                index++;
-
-                if (column >= 2) {
-                    column = 0;
-                    yOffset += imgHeight + 20;
-                }
-            }
-        }
-
-        // Links Vídeos
-        if (media.videosMidia.length > 0) {
-            doc.addPage();
-            addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-            yOffset = contentStartY + 10;
-            doc.setFillColor(230, 230, 230);
-            doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
-            doc.text("Links dos Vídeos", pageWidth / 2, yOffset, { align: "center" });
-            doc.setFont("helvetica", "normal");
-            yOffset += 12;
-            const maxLineWidth = pageWidth - 30;
-            index = 1;
-
-            for (const video of media.videosMidia) {
-                if (yOffset + 15 > contentEndY) {
-                    doc.addPage();
-                    addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
-                    yOffset = contentStartY + 10;
-                }
-        
-                // Divide o link em várias linhas se for muito longo
-                const wrappedText = doc.splitTextToSize(video.url, maxLineWidth);
-                doc.setFontSize(12);
-                doc.text(`${index})`, 10, yOffset + 1);
-                doc.setFontSize(10);
-        
-                doc.setTextColor(0, 0, 255);
-                wrappedText.forEach((line, index) => {
-                    doc.textWithLink(line, 15, yOffset + (index * 5), { url: video.url });
-                });
-                doc.setTextColor(0, 0, 0);
-        
-                yOffset += (wrappedText.length * 5);
-                doc.text(`Gravado em: ${moment(video.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, 15, yOffset);
-        
-                yOffset += 10;
-                index++;
-            }
-        }
+    if (i > 0) {
+      doc.addPage();
+      yOffset = contentStartY + 10;
     }
 
-    return Buffer.from(doc.output("arraybuffer"));
+    if (headerBase64 && footerBase64) {
+      addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+    }
+
+    doc.setFontSize(16);
+    doc.text("Relatório de Check-In de Mídias", 10, yOffset);
+    yOffset += 7;
+    doc.setFontSize(10);
+    doc.text(`Gerado em: ${reportDate}`, 10, yOffset);
+    yOffset += 7;
+
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.5);
+    doc.line(10, yOffset, pageWidth - 10, yOffset);
+    yOffset += 7;
+
+    doc.setFontSize(12);
+    doc.text(`Painel: ${checkIn.panelName}`, 15, yOffset);
+    yOffset += 7;
+    
+    const createdAt = checkIn.createdAt?._seconds
+    ? moment.unix(checkIn.createdAt._seconds).format("DD/MM/YYYY HH:mm:ss")
+    : "Data desconhecida";
+    doc.text(`Data: ${createdAt}`, 15, yOffset);
+    yOffset += 7;
+    doc.text(`Mídia: ${checkIn.midias[0].nomeMidia || checkIn.midias[0].idMidia}`, 15, yOffset);
+    yOffset += 7;
+    doc.text(`Cliente: ${checkIn.midias[0].cliente || "-"}`, 15, yOffset);``
+    const tipo = checkIn.midias[0].tipo || "";
+
+    if (tipo) {
+      yOffset += 7;
+      doc.text(`Tipo: `, 15, yOffset);
+      doc.setTextColor(35, 213, 99);
+      doc.setFont(undefined, "bold");
+      doc.text(`${checkIn.midias[0].tipo || "-"}`, 26, yOffset);
+      doc.setTextColor(0); // volta para preto
+      doc.setFont(undefined, "normal");
+    }  
+    
+    yOffset += 8;
+
+    doc.setDrawColor(180);
+    doc.setLineWidth(0.5);
+    doc.line(10, yOffset, pageWidth - 10, yOffset);
+    yOffset += 7;
+    doc.setDrawColor(0);
+
+    const media = checkIn.midias[0];
+
+    // Preview da Mídia
+    doc.setFillColor(230, 230, 230);
+    doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Preview da Mídia", pageWidth / 2, yOffset, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    yOffset += 12;
+    column = 0;
+
+    if (media.idMidia) {
+      const thumbnailUrl = `${BASE_THUMBNAIL_URL}${media.idMidia}.png`;
+      const base64Thumb = await loadImageAsBase64(thumbnailUrl);
+  
+      if (base64Thumb) {
+        doc.addImage(base64Thumb, "JPEG", 15, yOffset, 40, 30);
+      } else {
+        console.warn("Thumbnail não carregada:", media.idMidia);
+      }
+    }
+    yOffset += 40;
+
+    // Fotos da Mídia
+    if (media.fotosMidia.length > 0) {
+      doc.setFillColor(230, 230, 230);
+      doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Fotos da Mídia", pageWidth / 2, yOffset, { align: "center" });
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      yOffset += 12;
+      let index = 1;
+
+      for (const foto of media.fotosMidia) {
+        if (yOffset + imgHeight > contentEndY) {
+          doc.addPage();
+          addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+          yOffset = contentStartY + 10;
+          column = 0;
+        }
+    
+        const xPosition = startX + (column * (imgWidth + colSpacing));
+    
+        try {
+          const mediaUrl = foto.url;
+          const base64Media = await loadImageAsBase64(mediaUrl);
+  
+          if (base64Media) {
+            const imgProps = doc.getImageProperties(base64Media);
+            let w = imgWidth;
+            let h = imgHeight;
+            const aspectRatio = imgProps.width / imgProps.height;
+            if (aspectRatio > w / h) {
+                h = w / aspectRatio;
+            } else {
+                w = h * aspectRatio;
+            }
+
+            doc.setFontSize(12);
+            doc.text(`${index})`, xPosition - 3, yOffset + 3);
+            doc.addImage(base64Media, "JPEG", xPosition + 5, yOffset, w, h);
+            doc.setFontSize(10);
+            doc.text(`Tirada em: ${moment(foto.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, xPosition + 5, yOffset + h + 5);
+          } else {
+            console.warn("Erro ao carregar imagem da mídia:", foto.url);
+          }
+        } catch (error) {
+          console.warn("Erro ao carregar imagem da mídia:", error);
+        }
+    
+        column++;
+        index++;
+    
+        if (column >= 2) {
+          column = 0;
+          yOffset += imgHeight + 20;
+        }
+      }
+    }
+
+    // Fotos Entorno
+    if (media.fotosEntorno.length > 0) {
+      doc.addPage();
+      addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+      yOffset = contentStartY + 10;
+      doc.setFillColor(230, 230, 230);
+      doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Fotos do Entorno", pageWidth / 2, yOffset, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      yOffset += 12;
+      column = 0;
+      index = 1;
+
+      for (const foto of media.fotosEntorno) {
+        if (yOffset + 80 > contentEndY) {
+            doc.addPage();
+            addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+            yOffset = contentStartY + 10;
+            column = 0;
+        }
+
+        const xPosition = startX + (column * (imgWidth + colSpacing));
+
+        try {
+          const entornoUrl = foto.url;
+          const base64Entorno = await loadImageAsBase64(entornoUrl);
+          
+          if (base64Entorno) {
+            const imgProps = doc.getImageProperties(base64Entorno);
+            let w = imgWidth;
+            let h = imgHeight;
+            const aspectRatio = imgProps.width / imgProps.height;
+            if (aspectRatio > w / h) {
+                h = w / aspectRatio;
+            } else {
+                w = h * aspectRatio;
+            }
+
+            doc.setFontSize(12);
+            doc.text(`${index})`, xPosition - 3, yOffset + 3);
+            doc.addImage(base64Entorno, "JPEG", xPosition + 5, yOffset, w, h);
+            doc.setFontSize(10);
+            doc.text(`Tirada em: ${moment(foto.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, xPosition + 5, yOffset + imgHeight + 5);            
+          } else {
+              console.warn("Erro ao carregar imagem da mídia:", foto.url);
+          }
+        } catch (error) {
+            console.warn("Erro ao carregar imagem da mídia:", error);
+        }
+
+        column++;
+        index++;
+
+        if (column >= 2) {
+          column = 0;
+          yOffset += imgHeight + 20;
+        }
+      }
+    }
+
+    // Links Vídeos
+    if (media.videosMidia.length > 0) {
+      doc.addPage();
+      addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+      yOffset = contentStartY + 10;
+      doc.setFillColor(230, 230, 230);
+      doc.rect(10, yOffset - 5, pageWidth - 20, 10, "F");
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Links dos Vídeos", pageWidth / 2, yOffset, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      yOffset += 12;
+      const maxLineWidth = pageWidth - 30;
+      index = 1;
+
+      for (const video of media.videosMidia) {
+        if (yOffset + 15 > contentEndY) {
+            doc.addPage();
+            addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
+            yOffset = contentStartY + 10;
+        }
+
+        // Divide o link em várias linhas se for muito longo
+        const wrappedText = doc.splitTextToSize(video.url, maxLineWidth);
+        doc.setFontSize(12);
+        doc.text(`${index})`, 10, yOffset + 1);
+        doc.setFontSize(10);
+
+        doc.setTextColor(0, 0, 255);
+        wrappedText.forEach((line, index) => {
+            doc.textWithLink(line, 15, yOffset + (index * 5), { url: video.url });
+        });
+        doc.setTextColor(0, 0, 0);
+
+        yOffset += (wrappedText.length * 5);
+        doc.text(`Gravado em: ${moment(video.timestamp).format("DD/MM/YYYY HH:mm:ss")}`, 15, yOffset);
+
+        yOffset += 10;
+        index++;
+      }
+    }
+  }
+
+  return Buffer.from(doc.output("arraybuffer"));
 };
 
 const createPDFMidiasAtivas = async (midias) => {
@@ -462,7 +503,7 @@ const createPDFMidiasAtivas = async (midias) => {
   const headerBase64 = await loadImageAsBase64(path.join(__dirname, "../assets/fotos/fotoHeader.png"));
   const footerBase64 = await loadImageAsBase64(path.join(__dirname, "../assets/fotos/fotoFooter.png"));
   let yOffset = contentStartY + 10;
-  const reportDate = moment().format("DD/MM/YYYY, HH:mm:ss");
+  const reportDate = moment().utcOffset('-03:00').format("DD/MM/YYYY, HH:mm:ss");
 
   if (headerBase64 && footerBase64) {
     addHeaderAndFooter(doc, headerBase64, pageWidth, headerHeight, footerBase64, footerHeight, contentStartY, contentEndY);
@@ -566,9 +607,37 @@ const createPDFProposta = async (proposta) => {
       if (proposta.executivo_vendas) {
         doc.setFontSize(9);
         doc.setFont(undefined, "bold");
-        doc.text(`Executivo responsável: `, marginX, headerY + headerH + 4);
+        doc.text(`Executivo responsável: `, marginX, headerY + headerH + 3);
         doc.setFont(undefined, "normal");
-        doc.text(`${proposta.executivo_vendas || "-"}`, marginX + 37, headerY + headerH + 4);
+        doc.text(`${proposta.executivo_vendas || "-"}`, marginX + 37, headerY + headerH + 3);
+      }
+
+      // Plano de veiculação
+      if (proposta.plano_veiculacao) {
+        doc.setFontSize(9);
+        doc.setFont(undefined, "bold");
+        doc.text(`Plano de veiculação: `, marginX, headerY + headerH + 8);
+        doc.setFont(undefined, "normal");
+        const planoFormatado = proposta.plano_veiculacao === 'diario'
+        ? 'Diário'
+        : proposta.plano_veiculacao === 'mensal'
+          ? 'Mensal'
+          : (proposta.plano_veiculacao || '-');
+        doc.text(planoFormatado, marginX + 33, headerY + headerH + 8);
+        
+        // Forma de pagamento
+        doc.setFontSize(9);
+        doc.setFont(undefined, "bold");
+        doc.text(`Forma de pagamento: `, marginX, headerY + headerH + 14);
+        doc.setFont(undefined, "normal");
+        doc.text(`${proposta.forma_pagamento || "-"}`, marginX + 34, headerY + headerH + 14);
+
+        // Prazo de pagamento
+        doc.setFontSize(9);
+        doc.setFont(undefined, "bold");
+        doc.text(`Prazo de pagamento: `, marginX, headerY + headerH + 20);
+        doc.setFont(undefined, "normal");
+        doc.text(`${proposta.prazo_pagamento || "-"}`, marginX + 34, headerY + headerH + 20);
       }
     }
   
@@ -597,7 +666,7 @@ const createPDFProposta = async (proposta) => {
     // Tabela
     const tableMarginY = y + 30;
     const tableW = pageW - marginX * 2;
-    const colWidths = [16, 17, 24, 54, 19, 20, 17, 17, 16, 25, 18, 26];
+    const colWidths = [16, 17, 24, 54, 19, 20, 17, 17, 15, 25, 18, 26];
     const headers = [
       "CÓD", "Formato", "Cidade", "Produto", "Inserções/Dia",
       "Total Inserções", "Início", "Fim", "Qtd. dias", "Valor tabela", "Desconto", "Valor mensal c/desconto"
@@ -762,59 +831,74 @@ const createPDFProposta = async (proposta) => {
     const comissaoPercentual = parseFloat(proposta.comissao_agencia || "0");
     const totalComissao = totalFinal * (comissaoPercentual / 100);
     const totalLiquido = totalFinal - totalComissao;
-    if (comissaoPercentual > 0) {
-      // Mescla todas as colunas menos a última para o texto, e a última para o valor
-      const mergedWidth = colWidths.slice(0, -1).reduce((a, b) => a + b, 0);
-      const lastWidth = colWidths[colWidths.length - 1];
 
-      // --- Quebra de página se necessário para as duas linhas extras ---
-      const pageH = doc.internal.pageSize.getHeight();
-      const minBottomMargin = 20;
-      if (yTable + rowHeight * 2 > pageH - minBottomMargin) {
-        addPageNumber(doc, pageW, pageH, marginX, pageNumber);
-        doc.addPage();
-        pageNumber++;
-        yTable = marginX + 10; // ou outro valor adequado para o topo da nova página
-      }
-
-      // Linha: Comissão agência
-      x = marginX;
-      doc.setFont(undefined, "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(0);
-      doc.rect(x, yTable, mergedWidth, rowHeight); // legenda
-      doc.rect(x + mergedWidth, yTable, lastWidth, rowHeight); // valor
-      doc.text(
-        `Comissão agência (${comissaoPercentual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%)`,
-        x + mergedWidth / 2,
-        yTable + 6,
-        { align: "center" }
-      );
-      doc.text(
-        `R$ ${totalComissao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-        x + mergedWidth + lastWidth / 2,
-        yTable + 6,
-        { align: "center" }
-      );
-      yTable += rowHeight;
-
-      // Linha: Valor Líquido
-      doc.rect(x, yTable, mergedWidth, rowHeight); // legenda
-      doc.rect(x + mergedWidth, yTable, lastWidth, rowHeight); // valor
-      doc.text(
-        "Valor Líquido",
-        x + mergedWidth / 2,
-        yTable + 6,
-        { align: "center" }
-      );
-      doc.text(
-        `R$ ${totalLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-        x + mergedWidth + lastWidth / 2,
-        yTable + 6,
-        { align: "center" }
-      );
-      yTable += rowHeight;
+    // Mescla todas as colunas menos a última para o texto, e a última para o valor
+    const mergedWidth = colWidths.slice(0, -1).reduce((a, b) => a + b, 0);
+    const lastWidth = colWidths[colWidths.length - 1];
+  
+    // --- Quebra de página se necessário para as três linhas extras ---
+    const minBottomMargin = 20;
+    if (yTable + rowHeight * 3 > pageH - minBottomMargin) {
+      addPageNumber(doc, pageW, pageH, marginX, pageNumber);
+      doc.addPage();
+      pageNumber++;
+      yTable = marginX + 10;
     }
+  
+    // Linha: Valor do Desconto
+    x = marginX;
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.rect(x, yTable, mergedWidth, rowHeight); // legenda
+    doc.rect(x + mergedWidth, yTable, lastWidth, rowHeight); // valor
+    doc.text(
+      "Desconto",
+      x + mergedWidth / 2,
+      yTable + 6,
+      { align: "center" }
+    );
+    doc.text(
+      `R$ ${totalTabela - totalFinal > 0 ? (totalTabela - totalFinal).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0,00"}`,
+      x + mergedWidth + lastWidth / 2,
+      yTable + 6,
+      { align: "center" }
+    );
+    yTable += rowHeight;
+  
+    // Linha: Comissão agência
+    doc.rect(x, yTable, mergedWidth, rowHeight); // legenda
+    doc.rect(x + mergedWidth, yTable, lastWidth, rowHeight); // valor
+    doc.text(
+      `Comissão agência (${comissaoPercentual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%)`,
+      x + mergedWidth / 2,
+      yTable + 6,
+      { align: "center" }
+    );
+    doc.text(
+      `R$ ${totalComissao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      x + mergedWidth + lastWidth / 2,
+      yTable + 6,
+      { align: "center" }
+    );
+    yTable += rowHeight;
+  
+    // Linha: Valor Líquido
+    doc.rect(x, yTable, mergedWidth, rowHeight); // legenda
+    doc.rect(x + mergedWidth, yTable, lastWidth, rowHeight); // valor
+    doc.text(
+      "Valor Líquido",
+      x + mergedWidth / 2,
+      yTable + 6,
+      { align: "center" }
+    );
+    doc.text(
+      `R$ ${totalLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      x + mergedWidth + lastWidth / 2,
+      yTable + 6,
+      { align: "center" }
+    );
+    yTable += rowHeight;
 
     // 1. NOVA PÁGINA DE PROJEÇÕES DE AUDIÊNCIA
     addPageNumber(doc, pageW, pageH, marginX, pageNumber);
@@ -968,6 +1052,175 @@ const createPDFProposta = async (proposta) => {
       doc.text(line, 10, obsY);
       obsY += 5;
     });
+
+    // --- CALENDÁRIO DE VEICULAÇÃO POR PAINEL (se plano_veiculacao === 'diario') ---
+    if (proposta.plano_veiculacao === 'diario') {
+        doc.addPage();
+        pageNumber++;
+        addPageNumber(doc, pageW, pageH, marginX, pageNumber);
+
+        doc.setFontSize(18);
+        doc.setTextColor(35, 213, 99);
+        doc.setFont(undefined, "bold");
+        doc.text("Calendário de Veiculação", pageW / 2, 16, { align: "center" });
+        doc.setTextColor(0);
+        doc.setFont(undefined, "normal");
+
+        let calY = 28;
+        const calMargin = marginX;
+        const calMaxY = pageH - 20;
+
+        // Parâmetros para grade de calendários
+        const calendarW = 60; // largura de cada calendário
+        const calendarSpacing = 25; // espaço entre calendários
+        const calendarsPerRow = Math.floor((pageW - 2 * calMargin) / (calendarW + calendarSpacing));
+
+        // Função para desenhar um calendário mensal em (x, y)
+        function drawMonthCalendar(month, year, veiculados, startY, leftX) {
+            const cellW = 11;
+            const cellH = 9;
+            const daysOfWeek = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+            let y = startY;
+            let x = leftX;
+
+            // Cabeçalho do mês
+            doc.setFontSize(12);
+            doc.setFont(undefined, "normal");
+            doc.setTextColor(0);
+            doc.text(`${month.charAt(0).toUpperCase() + month.slice(1)} ${year}`, x, y);
+            y += 7;
+
+            // Dias da semana
+            doc.setFontSize(8.5);
+            for (let i = 0; i < 7; i++) {
+                doc.setFillColor(230, 230, 230);
+                doc.rect(x + i * cellW, y, cellW, cellH, "F");
+                doc.text(daysOfWeek[i], x + i * cellW + cellW / 2, y + 6, { align: "center" });
+            }
+            y += cellH;
+
+            // Dias do mês
+            const firstDay = moment(`${year}-${month}-01`, "YYYY-MMMM-DD");
+            const lastDay = firstDay.clone().endOf('month');
+            let dayPointer = firstDay.clone();
+            let week = 0;
+
+            const veiculadosSet = new Set(veiculados);
+            const firstDayIdx = dayPointer.day();
+
+            // Preenche as semanas
+            while (dayPointer.isSameOrBefore(lastDay)) {
+                for (let i = 0; i < 7; i++) {
+                    if (week === 0 && i < firstDayIdx) {
+                        doc.setFillColor(245, 245, 245);
+                        doc.rect(x + i * cellW, y + week * cellH, cellW, cellH, "F");
+                    } else if (dayPointer.isSameOrBefore(lastDay)) {
+                        const diaStr = dayPointer.format("DD");
+                        const diaFull = dayPointer.format("YYYY-MM-DD");
+                        if (veiculadosSet.has(diaFull)) {
+                            doc.setFillColor(60, 60, 60); 
+                            doc.rect(x + i * cellW, y + week * cellH, cellW, cellH, "F");
+                            doc.setTextColor(255);
+                            doc.setFont(undefined, "bold");
+                        } else {
+                            doc.setFillColor(230, 230, 230);
+                            doc.rect(x + i * cellW, y + week * cellH, cellW, cellH, "F");
+                            doc.setTextColor(120);
+                            doc.setFont(undefined, "normal");
+                        }
+                        doc.text(diaStr, x + i * cellW + cellW / 2, y + week * cellH + 6, { align: "center" });
+                        doc.setTextColor(0);
+                        dayPointer.add(1, "day");
+                    } else {
+                        doc.setFillColor(245, 245, 245);
+                        doc.rect(x + i * cellW, y + week * cellH, cellW, cellH, "F");
+                    }
+                }
+                week++;
+            }
+            // Altura total do calendário
+            return y + week * cellH + 4;
+        }
+
+        let calRow = 0;
+        let calCol = 0;
+        for (const p of proposta.paineis || []) {
+          calCol = 0;
+            // Painel título
+            if (calY > calMaxY - 40) {
+                doc.addPage();
+                pageNumber++;
+                addPageNumber(doc, pageW, pageH, marginX, pageNumber);
+                calY = 20;
+                calRow = 0;
+                calCol = 0;
+            }
+            doc.setFontSize(13);
+            doc.setFont(undefined, "bold");
+            doc.setTextColor(0);
+            doc.text(`Painel: ${p.produto || "-"}`, calMargin, calY);
+            doc.setFont(undefined, "normal");
+            doc.setFontSize(10);
+            calY += 8;
+
+            // Agrupa dias por mês/ano
+            const dias = Array.isArray(p.dias_veiculacao) ? p.dias_veiculacao : [];
+            const diasPorMes = {};
+            dias.forEach(dia => {
+                const m = moment(dia, "YYYY-MM-DD");
+                const chaveMes = m.format("MMMM");
+                const chaveAno = m.format("YYYY");
+                const chave = `${chaveMes}-${chaveAno}`;
+                if (!diasPorMes[chave]) diasPorMes[chave] = [];
+                diasPorMes[chave].push(m.format("YYYY-MM-DD"));
+            });
+
+            // Desenhar os calendários em grade
+            let maxCalY = calY;
+            const meses = Object.entries(diasPorMes);
+            for (let idx = 0; idx < meses.length; idx++) {
+                const [mesAno, diasArr] = meses[idx];
+                const [mes, ano] = mesAno.split("-");
+                // Calcula posição X/Y
+                const calendarHeight = 75; // altura estimada do calendário (aumentado)
+                const x = calMargin + calCol * (calendarW + calendarSpacing);
+                const y = calY + calRow * calendarHeight; // altura estimada do calendário
+
+                // Se passar da largura, pula para próxima linha
+                if (x + calendarW > pageW - calMargin) {
+                    calCol = 0;
+                    calRow++;
+                }
+
+                // Recalcula y após possível incremento de calRow
+                const yAtual = calY + calRow * calendarHeight;
+
+                // Se passar da altura, nova página
+                if (yAtual + calendarHeight > calMaxY) {
+                    doc.addPage();
+                    pageNumber++;
+                    addPageNumber(doc, pageW, pageH, marginX, pageNumber);
+                    calY = 20;
+                    calRow = 0;
+                    calCol = 0;
+                    maxCalY = calY;
+                }
+
+                // Recalcula x/y após possível quebra de página
+                const xFinal = calMargin + calCol * (calendarW + calendarSpacing);
+                const yFinal = calY + calRow * calendarHeight;
+
+                const calEndY = drawMonthCalendar(mes, ano, diasArr, yFinal, xFinal);
+                maxCalY = Math.max(maxCalY, calEndY);
+                calCol++;
+                if (calCol >= calendarsPerRow) {
+                    calCol = 0;
+                    calRow++;
+                }
+            }
+            calY = maxCalY + 10;
+        }
+    }
   
     return Buffer.from(doc.output("arraybuffer"));
   };
@@ -1212,7 +1465,7 @@ const createPDFPedidoInsercao = async (pedido) => {
   // --- Lógica de quebra de página para tabela e totais ---
   const pageH = doc.internal.pageSize.getHeight();
   const minBottomMargin = 20;
-  const rowHeight = 9;
+  let rowHeight = 9;
   const colWidths = [10, 25, 70, 17, 17, 12, 12, 23, 22, 22, 22, 22];
   const headers = [
     "Item", "Cidade", "Painel", "Início", "Fim", "Dias", "Telas", "Inserções/dia", "Inserções TOTAIS", "Valor Tabela", "Desconto", "Valor Total"
@@ -1353,41 +1606,56 @@ const createPDFPedidoInsercao = async (pedido) => {
     "Desconto adicional:",
     "Valor Negociado:",
     `Comissão agência (${comissaoPercentual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%):`,
-    "Valor Líquido:"
+    "Valor Líquido:",
+    "Forma de pagamento:",
+    "Prazo de pagamento:"
   ];
   const totalValues = [
     `R$ ${totalBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
     `R$ ${totalDesconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
     `R$ ${totalNegociado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
     `R$ ${totalComissao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-    `R$ ${totalLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+    `R$ ${totalLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+    pedido.forma_pagamento || "-",
+    pedido.prazo_pagamento || "-"
   ];
 
   // Calcula a posição X das 3 últimas colunas
   const xTotais = marginX + colWidths.slice(0, -3).reduce((a, b) => a + b, 0);
   const widthLegenda = colWidths[colWidths.length - 3] + colWidths[colWidths.length - 2];
   const widthValor = colWidths[colWidths.length - 1];
+  const rectHeight = 9;
+  rowHeight = 7;
 
   for (let i = 0; i < totalLabels.length; i++) {
     doc.setFillColor(35, 213, 99);
     doc.setFont(undefined, "bold");
     doc.setTextColor(255);
-    doc.rect(xTotais, yTable + i * rowHeight, widthLegenda, rowHeight, 'F');
-    doc.text(totalLabels[i], xTotais + 2, yTable + 6 + i * rowHeight, { align: "left" });
-
-    doc.setFillColor(35, 213, 99);
-    doc.rect(xTotais + widthLegenda, yTable + i * rowHeight, widthValor, rowHeight, 'F');
+    let xLabel = xTotais + 2;
+    let xValue = xTotais + widthLegenda + widthValor / 2;
+  
+    // Recuar o valor apenas para "Forma de pagamento"
+    if (totalLabels[i] === "Forma de pagamento:") {
+      xValue -= 7;
+    }
+  
+    doc.rect(xTotais, yTable + i * rowHeight, widthLegenda, rectHeight, 'F');
+    doc.rect(xTotais + widthLegenda, yTable + i * rowHeight, widthValor, rectHeight, 'F');
+  
+    const cellCenterY = yTable + i * rowHeight + rectHeight / 2 + 1;
+  
+    doc.text(totalLabels[i], xLabel, cellCenterY, { align: "left" });
     doc.text(
       totalValues[i],
-      xTotais + widthLegenda + widthValor / 2,
-      yTable + 6 + i * rowHeight,
+      xValue,
+      cellCenterY,
       { align: "center" }
     );
   }
   doc.setTextColor(0);
 
   // Observações e rodapé
-  let rodapeY = yTable + rowHeight * 3 + 8;
+  let rodapeY = yTable + rowHeight * 3 + 13;
   const rodapeLargura = pageW - marginX * 2;
   const rodapeFont = 8.2;
 
@@ -1423,6 +1691,19 @@ const createPDFPedidoInsercao = async (pedido) => {
     doc.line(marginX, rodapeY, pageW - marginX, rodapeY);
     rodapeY += 4;
   }
+
+  const assinaturaY = yTable + 8;
+  const assinaturaX = marginX + 5;
+  const assinaturaLargura = 80;
+
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.3);
+  doc.line(assinaturaX, assinaturaY + rectHeight - 2, assinaturaX + assinaturaLargura, assinaturaY + rectHeight - 2);
+
+  // Nome do cliente abaixo da linha
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(9);
+  doc.text(pedido.cliente?.nome || "-", assinaturaX, assinaturaY + rectHeight + 3);
 
   rodapeSecao(
     "Veiculações",
