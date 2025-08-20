@@ -4,7 +4,7 @@ async function getLiveFixtures() {
     // const url = "https://v3.football.api-sports.io/fixtures?live=all";
     const url = "https://v3.football.api-sports.io/fixtures?league=71&live=all";
     const headers = {
-        "x-rapidapi-key": "b6312782bb758141f1fdadf4d6067c3c"
+        "x-rapidapi-key": process.env.FOOTBALL_API_KEY,
     };
     const response = await axios.get(url, { headers });
     return response.data;
