@@ -18,6 +18,9 @@ exports.createProposta = async (dados) => {
         infoCliente,
         infoAgencia,
         executivo_vendas,
+        contrato_inicio,
+        contrato_fim,
+        plano_veiculacao,
     } = dados;
 
     // Validação básica dos campos gerais
@@ -32,7 +35,7 @@ exports.createProposta = async (dados) => {
     // Validação dos painéis
     paineis.forEach((p, idx) => {
         if (!p.painelId || !p.painelNome) throw new Error(`O campo 'Painel' é obrigatório no painel ${idx + 1}.`);
-        if (!p.periodo_veiculacao || !p.periodo_veiculacao.inicio || !p.periodo_veiculacao.fim)
+        if ((!p.periodo_veiculacao.inicio || !p.periodo_veiculacao.fim) && !p.dias_veiculacao)
             throw new Error(`O período de veiculação é obrigatório no painel ${idx + 1}.`);
         if (!p.insercoes_diarias) throw new Error(`O campo 'Inserções diárias' é obrigatório no painel ${idx + 1}.`);
     });
@@ -79,6 +82,9 @@ exports.createProposta = async (dados) => {
         infoCliente,
         infoAgencia,
         executivo_vendas,
+        contrato_inicio,
+        contrato_fim,
+        plano_veiculacao,
         criado_em: new Date(),
         atualizado_em: new Date(),
     });
