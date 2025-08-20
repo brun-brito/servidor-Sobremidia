@@ -71,6 +71,7 @@ exports.displayCheckin = async (req, res) => {
                         <li class="media-item">
                             <p><strong>Mídia:</strong> ${media.nomeMidia || media.idMidia}</p>
                             <p><strong>Cliente:</strong> ${media.cliente || "-"}</p>
+                            <p><strong>Tipo:</strong> ${media.tipo ? `<span style="color: #00d000;font-weight: bold;">${media.tipo}</span>` : `<span> -</span>`}</p>
 
                             <h3>Preview da Mídia</h3>
                             <div class="photo-group">
