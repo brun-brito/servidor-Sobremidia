@@ -51,7 +51,7 @@ exports.atualiza_analytics = onSchedule(
         minBackoffSeconds: 30, // Tempo mínimo entre tentativas (30s)
         maxBackoffSeconds: 120, // Tempo máximo entre tentativas (2 minutos)
         maxDoublings: 2, // O tempo entre re-tentativas dobrará até 2 vezes
-        timeoutSeconds: 300, // Tempo máximo de execução (5 minutos)
+        timeoutSeconds: 3600, // Tempo máximo de execução (5 minutos)
     },
     async (event) => {
         console.log("[INFO] Iniciando função atualiza_analytics...");
@@ -70,7 +70,7 @@ exports.v1 = functions
     .https.onRequest(
         {
             memory: "1GiB",
-            timeoutSeconds: 300,
+            timeoutSeconds: 3600,
         },
         app
     );
