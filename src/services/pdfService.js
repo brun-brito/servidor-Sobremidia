@@ -571,7 +571,7 @@ const createPDFProposta = async (proposta) => {
     // 2. Informações da empresa
     doc.setFontSize(11);
     doc.setFont(undefined, "bold");
-    doc.text("SOBREMIDIA DIGITAL LTDA", marginX + logoW + 4, headerY + 6);
+    doc.text("SOBREMIDIA DIGITAL LTDA", marginX + logoW + 4, headerY + 4);
     doc.setFont(undefined, "normal");
     doc.setFontSize(9);
     doc.text([
@@ -579,7 +579,7 @@ const createPDFProposta = async (proposta) => {
       "FORTALEZA/CE, 60.040-520",
       "FONE/ FAX (85) 99980-8767",
       "CNPJ: 53.385.130/0001-56",
-    ], marginX + logoW + 4, headerY + 11);
+    ], marginX + logoW + 4, headerY + 9);
 
     // Data de emissão (atualizado_em)
     console.log(proposta);
@@ -603,6 +603,12 @@ const createPDFProposta = async (proposta) => {
       doc.setFont(undefined, "normal");
       doc.text(`${dataEmissao}`, marginX + 23, headerY + headerH - 2);
 
+      // Email checkin
+      doc.setFont(undefined, "bold");
+      doc.text(`E-mail Check-in: `, marginX + 70, headerY + headerH - 2);
+      doc.setFont(undefined, "normal");
+      doc.text(`${proposta.email_checkin}`, marginX + 96, headerY + headerH - 2);
+
       // Executivo de vendas
       if (proposta.executivo_vendas) {
         doc.setFontSize(9);
@@ -619,7 +625,7 @@ const createPDFProposta = async (proposta) => {
         doc.text(`Plano de veiculação: `, marginX, headerY + headerH + 8);
         doc.setFont(undefined, "normal");
         const planoFormatado = proposta.plano_veiculacao === 'diario'
-        ? 'Diário'
+        ? 'Diário (calendário no fim do arquivo)'
         : proposta.plano_veiculacao === 'mensal'
           ? 'Mensal'
           : (proposta.plano_veiculacao || '-');
@@ -1369,6 +1375,13 @@ const createPDFPedidoInsercao = async (pedido) => {
 
   doc.setFont(undefined, "bold");
   doc.setFontSize(fontSizeLabel);
+  doc.text("Email Check-in:", col1X, yCliente + 30);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(fontSizeValue);
+  doc.text(pedido.email_checkin || "-", col1X + 26, yCliente + 30, { maxWidth: colLong });
+
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(fontSizeLabel);
   doc.text("Contato:", col1X + colShort, yCliente + 30);
   doc.setFont(undefined, "normal");
   doc.setFontSize(fontSizeValue);
@@ -1621,39 +1634,46 @@ const createPDFPedidoInsercao = async (pedido) => {
   ];
 
   // Calcula a posição X das 3 últimas colunas
-  const xTotais = marginX + colWidths.slice(0, -3).reduce((a, b) => a + b, 0);
-  const widthLegenda = colWidths[colWidths.length - 3] + colWidths[colWidths.length - 2];
-  const widthValor = colWidths[colWidths.length - 1];
-  const rectHeight = 9;
-  rowHeight = 7;
+  const resumoWidth = colWidths[colWidths.length - 3] + colWidths[colWidths.length - 2] + colWidths[colWidths.length - 1] * 0.5;
+  const widthLegenda = 28; // largura da legenda
+  const widthValor = resumoWidth - widthLegenda; // largura do valor
+  const xTotais = pageW - marginX - resumoWidth - 7; // posição X dos totais
+  const valueX = xTotais + widthLegenda; // posição inicial do valor
 
-  for (let i = 0; i < totalLabels.length; i++) {
-    doc.setFillColor(35, 213, 99);
-    doc.setFont(undefined, "bold");
-    doc.setTextColor(255);
-    let xLabel = xTotais + 2;
-    let xValue = xTotais + widthLegenda + widthValor / 2;
-  
-    // Recuar o valor apenas para "Forma de pagamento"
-    if (totalLabels[i] === "Forma de pagamento:") {
-      xValue -= 7;
-    }
-  
-    doc.rect(xTotais, yTable + i * rowHeight, widthLegenda, rectHeight, 'F');
-    doc.rect(xTotais + widthLegenda, yTable + i * rowHeight, widthValor, rectHeight, 'F');
-  
-    const cellCenterY = yTable + i * rowHeight + rectHeight / 2 + 1;
-  
-    doc.text(totalLabels[i], xLabel, cellCenterY, { align: "left" });
-    doc.text(
-      totalValues[i],
-      xValue,
-      cellCenterY,
-      { align: "center" }
-    );
-  }
+  doc.setFontSize(9);
+  doc.setFont(undefined, "bold");
   doc.setTextColor(0);
 
+for (let i = 0; i < totalLabels.length; i++) {
+  // Não quebra linha para o label, apenas escreve inteiro
+  doc.setFont(undefined, "bold");
+  doc.setTextColor(0);
+  doc.text(
+    totalLabels[i],
+    valueX + 3, // alinhado à direita da célula de valores
+    yTable + 4,
+    { align: "right" }
+  );
+  // Quebra o texto do valor normalmente
+  const valueLines = doc.splitTextToSize(totalValues[i], widthValor - 4);
+  const cellHeight = valueLines.length * 4 + 2;
+
+  // Bordas apenas para o valor
+  doc.rect(valueX + 5, yTable, widthValor - 5, cellHeight);
+
+  // Centraliza verticalmente os valores
+  const valueStartY = yTable + (cellHeight - valueLines.length * 4) / 2 + 3;
+  doc.setFont(undefined, "normal");
+  valueLines.forEach((line, j) => {
+    doc.text(line, (valueX + widthValor / 2) + 3, valueStartY + j * 4, { align: "center" });
+  });
+
+  yTable += cellHeight;
+}
+  doc.setTextColor(0);
+
+  const rectHeight = 9;
+  rowHeight = 7;
   // Observações e rodapé
   let rodapeY = yTable + rowHeight * 3 + 13;
   const rodapeLargura = pageW - marginX * 2;
@@ -1703,7 +1723,7 @@ const createPDFPedidoInsercao = async (pedido) => {
   // Nome do cliente abaixo da linha
   doc.setFont(undefined, "normal");
   doc.setFontSize(9);
-  doc.text(pedido.cliente?.nome || "-", assinaturaX, assinaturaY + rectHeight + 3);
+  doc.text(pedido.cliente?.razao_social || pedido.cliente?.nome || "-", assinaturaX, assinaturaY + rectHeight + 3);
 
   rodapeSecao(
     "Veiculações",
