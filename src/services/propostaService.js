@@ -21,6 +21,7 @@ exports.createProposta = async (dados) => {
         contrato_inicio,
         contrato_fim,
         plano_veiculacao,
+        email_checkin,
     } = dados;
 
     // Validação básica dos campos gerais
@@ -85,6 +86,7 @@ exports.createProposta = async (dados) => {
         contrato_inicio,
         contrato_fim,
         plano_veiculacao,
+        email_checkin,
         criado_em: new Date(),
         atualizado_em: new Date(),
     });
