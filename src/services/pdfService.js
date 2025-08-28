@@ -1045,6 +1045,7 @@ const createPDFProposta = async (proposta) => {
   
     doc.setTextColor(0);
     const obs = [
+      ...(proposta.observacoes && proposta.observacoes.trim() !== "" ? [proposta.observacoes] : []),
       "Material de exibição e veiculação de responsabilidade do cliente/agência;",
       "Valores de animação, adaptação e criação de layout para formatos digitais de responsabilidade da agência/cliente;",
       "Sistema utilizado para publicação e veiculação são auditados e regulados perante a IVC;",
@@ -1054,9 +1055,20 @@ const createPDFProposta = async (proposta) => {
   
     doc.setFontSize(8);
     let obsY = audY + 14;
+    const obsLineHeight = 5;
+    const obsMargin = 10;
+
     obs.forEach(line => {
-      doc.text(line, 10, obsY);
-      obsY += 5;
+      // Verifica se há espaço suficiente na página antes de adicionar a linha
+      if (obsY + obsLineHeight > pageH - minBottomMargin + 10) {
+        addPageNumber(doc, pageW, pageH, marginX, pageNumber);
+        doc.addPage();
+        pageNumber++;
+        obsY = marginX + 10; // ou outro valor para topo da nova página
+        doc.setFontSize(8);
+      }
+      doc.text(line, obsMargin, obsY);
+      obsY += obsLineHeight;
     });
 
     // --- CALENDÁRIO DE VEICULAÇÃO POR PAINEL (se plano_veiculacao === 'diario') ---
@@ -1747,7 +1759,11 @@ for (let i = 0; i < totalLabels.length; i++) {
 
   ensureRodapeSpace(2, 10); // Garante espaço para "Observações:"
   doc.setFont(undefined, "bold");
+  doc.setFontSize(rodapeFont);
   doc.text("Observações:", marginX, rodapeY + 2);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(5);
+  doc.text(pedido.observacoes || "-", marginX, rodapeY + 6, { maxWidth: rodapeLargura });
 
   // Adiciona número da última página ao final do PDF
   addPageNumber(doc, pageW, pageH, marginX, pageNumber);
