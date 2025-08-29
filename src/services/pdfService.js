@@ -1049,9 +1049,7 @@ const createPDFProposta = async (proposta) => {
       "Material de exibição e veiculação de responsabilidade do cliente/agência;",
       "Valores de animação, adaptação e criação de layout para formatos digitais de responsabilidade da agência/cliente;",
       "Sistema utilizado para publicação e veiculação são auditados e regulados perante a IVC;",
-      "Prazo de entrega do material de publicação deverá ser entregue, no mínimo, 72 horas antes do início da exibição;",
-      "Vencimento D+15 (15 dias após finalização de cada período de exibição)."
-    ];
+      "Prazo de entrega do material de publicação deverá ser entregue, no mínimo, 72 horas antes do início da exibição;"    ];
   
     doc.setFontSize(8);
     let obsY = audY + 14;
